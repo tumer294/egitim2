@@ -130,3 +130,4 @@ function mapFirebaseAuthError(errorCode: string): string {
         return 'Bir hata oluştu. Lütfen tekrar deneyin.';
     }
   }
+
