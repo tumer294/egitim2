@@ -52,44 +52,33 @@ function AyarlarPageContent() {
   
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !profile || !user?.uid) return;
+
+    // Simple check for image type
+    if (!file.type.startsWith('image/')) {
+        toast({
+            title: "Geçersiz Dosya Türü",
+            description: "Lütfen bir resim dosyası seçin.",
+            variant: "destructive",
+        });
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
-        const img = document.createElement('img');
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 400;
-            const MAX_HEIGHT = 400;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-                if (width > MAX_WIDTH) {
-                    height *= MAX_WIDTH / width;
-                    width = MAX_WIDTH;
-                }
-            } else {
-                if (height > MAX_HEIGHT) {
-                    width *= MAX_HEIGHT / height;
-                    height = MAX_HEIGHT;
-                }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
-            const dataUrl = canvas.toDataURL(file.type);
-            
-            if(profile && user?.uid){
-                updateProfile({ ...profile, avatarUrl: dataUrl });
-                toast({
-                    title: "Profil Resmi Güncellendi!",
-                    description: "Yeni resminiz başarıyla kaydedildi.",
-                })
-            }
-        };
-        img.src = e.target?.result as string;
+        const dataUrl = e.target?.result as string;
+        updateProfile({ ...profile, avatarUrl: dataUrl });
+        toast({
+            title: "Profil Resmi Güncellendi!",
+            description: "Yeni resminiz başarıyla kaydedildi.",
+        });
+    };
+    reader.onerror = () => {
+        toast({
+            title: "Hata",
+            description: "Dosya okunurken bir hata oluştu.",
+            variant: "destructive",
+        });
     };
     reader.readAsDataURL(file);
   };
@@ -97,7 +86,7 @@ function AyarlarPageContent() {
   const handlePasswordChange = () => {
     toast({
         title: "Şifre Başarıyla Değiştirildi!",
-        description: "Yeni şifrenizle giriş yapabilirsiniz.",
+        description: "Giriş yaparken yeni şifrenizi kullanabilirsiniz.",
     });
     setIsChangePasswordOpen(false);
   }
@@ -261,7 +250,7 @@ function AyarlarPageContent() {
       <ChangePasswordForm
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
-        onSave={handlePasswordChange}
+        onPasswordChanged={handlePasswordChange}
        />
     </AppLayout>
   );

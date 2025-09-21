@@ -9,6 +9,9 @@ import {
   signOut,
   getAuth,
   sendPasswordResetEmail,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   type User,
 } from 'firebase/auth';
 import { app, db } from '@/lib/firebase';
@@ -25,6 +28,7 @@ interface AuthContextType {
   logIn: (email: string, pass: string) => Promise<void>;
   logOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<boolean>;
+  changePassword: (currentPass: string, newPass: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,7 +50,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      // Just create the user in Auth. Profile will be created lazily by useUserProfile.
       await createUserWithEmailAndPassword(auth, email, pass);
     } catch (err: any) {
       setError(mapFirebaseAuthError(err.code));
@@ -89,6 +92,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  const changePassword = async (currentPass: string, newPass: string): Promise<boolean> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser || !currentUser.email) {
+      throw new Error("Kullanıcı bulunamadı veya e-posta adresi yok.");
+    }
+  
+    try {
+      const credential = EmailAuthProvider.credential(currentUser.email, currentPass);
+      await reauthenticateWithCredential(currentUser, credential);
+      await updatePassword(currentUser, newPass);
+      return true;
+    } catch (err: any) {
+      throw new Error(mapFirebaseAuthError(err.code));
+    }
+  };
+
+
   const value = {
     user,
     loading,
@@ -97,6 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logIn,
     logOut,
     sendPasswordReset,
+    changePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -110,7 +131,6 @@ export const useAuth = () => {
   return context;
 };
 
-// Helper function to provide user-friendly error messages
 function mapFirebaseAuthError(errorCode: string): string {
     switch (errorCode) {
       case 'auth/invalid-email':
@@ -118,16 +138,17 @@ function mapFirebaseAuthError(errorCode: string): string {
       case 'auth/user-disabled':
         return 'Bu kullanıcı hesabı devre dışı bırakılmış.';
       case 'auth/user-not-found':
-      case 'auth/invalid-credential':
         return 'E-posta veya şifre yanlış.';
+      case 'auth/invalid-credential':
       case 'auth/wrong-password':
-          return 'Yanlış şifre. Lütfen tekrar deneyin.';
+          return 'Mevcut şifreniz yanlış. Lütfen tekrar deneyin.';
       case 'auth/email-already-in-use':
         return 'Bu e-posta adresi zaten başka bir hesap tarafından kullanılıyor.';
       case 'auth/weak-password':
         return 'Şifre çok zayıf. Lütfen en az 6 karakter kullanın.';
+      case 'auth/requires-recent-login':
+          return 'Bu hassas bir işlemdir. Lütfen tekrar giriş yapıp deneyin.';
       default:
         return 'Bir hata oluştu. Lütfen tekrar deneyin.';
     }
   }
-

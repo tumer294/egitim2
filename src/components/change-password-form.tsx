@@ -17,6 +17,9 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
     currentPassword: z.string().min(1, { message: 'Mevcut şifre gereklidir.' }),
@@ -30,12 +33,17 @@ const formSchema = z.object({
 type ChangePasswordFormValues = z.infer<typeof formSchema>;
 
 type ChangePasswordFormProps = {
-  onSave: (data: ChangePasswordFormValues) => void;
+  onPasswordChanged: () => void;
   onClose: () => void;
   isOpen: boolean;
 };
 
-export function ChangePasswordForm({ onSave, onClose, isOpen }: ChangePasswordFormProps) {
+export function ChangePasswordForm({ onPasswordChanged, onClose, isOpen }: ChangePasswordFormProps) {
+  const { toast } = useToast();
+  const { changePassword } = useAuth();
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
   const form = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -45,20 +53,31 @@ export function ChangePasswordForm({ onSave, onClose, isOpen }: ChangePasswordFo
     },
   });
 
-  const handleSubmit = (values: ChangePasswordFormValues) => {
-    // In a real app, you would handle password change logic here
-    console.log('Password change data:', values);
-    onSave(values);
-    form.reset();
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) {
+  const handleSubmit = async (values: ChangePasswordFormValues) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+        const success = await changePassword(values.currentPassword, values.newPassword);
+        if (success) {
+            onPasswordChanged();
             form.reset();
         }
-        onClose();
-    }}>
+    } catch (e: any) {
+        setError(e.message);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (isLoading) return;
+    form.reset();
+    setError(null);
+    onClose();
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Şifreyi Değiştir</DialogTitle>
@@ -68,6 +87,7 @@ export function ChangePasswordForm({ onSave, onClose, isOpen }: ChangePasswordFo
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <FormField
               control={form.control}
               name="currentPassword"
@@ -109,11 +129,14 @@ export function ChangePasswordForm({ onSave, onClose, isOpen }: ChangePasswordFo
             />
             <DialogFooter>
                 <DialogClose asChild>
-                    <Button type="button" variant="secondary">
+                    <Button type="button" variant="secondary" disabled={isLoading}>
                         İptal
                     </Button>
                 </DialogClose>
-                <Button type="submit">Şifreyi Kaydet</Button>
+                <Button type="submit" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                    Şifreyi Kaydet
+                </Button>
             </DialogFooter>
           </form>
         </Form>
