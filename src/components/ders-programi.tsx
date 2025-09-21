@@ -69,6 +69,7 @@ export default function DersProgrami() {
   const [viewingPlanContent, setViewingPlanContent] = React.useState<LessonPlanEntry[] | null>(null);
   const [viewingPlanTitle, setViewingPlanTitle] = React.useState<string>('');
   const [startWeekForPlan, setStartWeekForPlan] = React.useState<number>(1);
+  const clickTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
 
   React.useEffect(() => {
@@ -152,11 +153,18 @@ export default function DersProgrami() {
   const handleLessonSave = async (day: Day, lessonData: Omit<Lesson, 'id'|'lessonSlot'> | null, lessonSlot: number) => {
     if (!user) return;
     
-    // Pass the full data object from the form to the update function
-    await updateLesson(day, lessonData, lessonSlot);
+    let finalLessonData = lessonData;
+    if (finalLessonData && !finalLessonData.planId) {
+        const relatedPlan = findRelatedPlan(finalLessonData);
+        if (relatedPlan) {
+            finalLessonData = { ...finalLessonData, planId: relatedPlan.id };
+        }
+    }
+    
+    await updateLesson(day, finalLessonData, lessonSlot);
 
-    if (lessonData) {
-        toast({ title: "Ders Kaydedildi!", description: `${lessonData.subject} dersi programa eklendi.` });
+    if (finalLessonData) {
+        toast({ title: "Ders Kaydedildi!", description: `${finalLessonData.subject} dersi programa eklendi.` });
     }
     setEditingLesson(null);
   };
@@ -246,18 +254,33 @@ export default function DersProgrami() {
 
   const findRelatedPlan = (lesson: Lesson | null): Plan | null => {
     if (!lesson) return null;
-    // First, try to find a plan directly linked by planId
     if (lesson.planId) {
         const directPlan = plans.find(p => p.id === lesson.planId);
         if (directPlan) return directPlan;
     }
-    // Fallback to finding a plan by grade, if no planId is set
     if (!lesson.grade) return null;
     return plans.find(p => p.grade === lesson.grade && p.type === 'annual') || null;
 }
 
   const handleLessonClick = (day: Day, slotIndex: number, lesson: Lesson | null) => {
-    openEditLessonModal(day, slotIndex, lesson);
+    if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+        // Double-click
+        openEditLessonModal(day, slotIndex, lesson);
+    } else {
+        clickTimeoutRef.current = setTimeout(() => {
+            // Single-click
+            const relatedPlan = findRelatedPlan(lesson);
+            if (relatedPlan) {
+                viewFile(relatedPlan, getAcademicWeek(new Date()));
+            } else {
+                // If no plan, open edit modal on single click
+                openEditLessonModal(day, slotIndex, lesson);
+            }
+            clickTimeoutRef.current = null;
+        }, 250); // 250ms delay to differentiate single/double click
+    }
   };
 
   if (isLoading || isLoadingPlans) {
@@ -341,7 +364,7 @@ export default function DersProgrami() {
                                             <p className='text-xs text-muted-foreground'>{lesson.grade} - {lesson.class}</p>
                                         </>
                                     ) : (
-                                         <p className='text-sm text-muted-foreground'>Ders eklemek için tıklayın...</p>
+                                         <p className='text-sm text-muted-foreground'>Boş ders... (Çift tıklayarak ekle)</p>
                                     )}
                                 </div>
                             </button>
@@ -486,3 +509,4 @@ export default function DersProgrami() {
     </div>
   );
 }
+

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -262,7 +263,11 @@ export function AddLessonForm({ isOpen, onClose, day, lessonSlot, lesson, onSave
                        <TooltipProvider>
                           <Tooltip>
                               <TooltipTrigger asChild>
-                                  <Button type='button' variant='outline' size="icon" onClick={() => onViewPlan(relatedPlan)}>
+                                  <Button type='button' variant='outline' size="icon" onClick={(e) => {
+                                      e.preventDefault();
+                                      onClose();
+                                      setTimeout(() => onViewPlan(relatedPlan), 150);
+                                  }}>
                                       <BookOpen className='h-4 w-4' />
                                   </Button>
                               </TooltipTrigger>
@@ -286,3 +291,4 @@ export function AddLessonForm({ isOpen, onClose, day, lessonSlot, lesson, onSave
     </Dialog>
   );
 }
+
