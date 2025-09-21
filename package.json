@@ -1,3 +1,4 @@
+
 {
   "name": "nextn",
   "version": "0.1.0",
@@ -13,7 +14,6 @@
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
-    "@genkit-ai/firebase": "1.14.1",
     "@genkit-ai/googleai": "1.14.1",
     "@genkit-ai/next": "1.14.1",
     "@hookform/resolvers": "^3.9.0",
@@ -42,12 +42,11 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.1.6",
-    "firebase": "^12.2.1",
+    "firebase": "^10.14.1",
     "genkit": "1.14.1",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
     "lucide-react": "^0.417.0",
-    "mammoth": "^1.8.0",
     "next": "15.3.3",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
