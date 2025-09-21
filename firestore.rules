@@ -1,0 +1,67 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allow users to read and write their own profile data
+    match /users/{userId} {
+      allow read, update: if request.auth.uid == userId;
+      // Allow creation of a user profile doc only if it doesn't exist.
+      // This is usually done on signup. The user ID must match.
+      allow create: if request.auth.uid == userId;
+
+      // Allow users to manage their own classes, students, records, notes, plans, reminders
+      match /classes/{classId} {
+        allow read, write, delete: if request.auth.uid == userId;
+        match /students/{studentId} {
+          allow read, write, delete: if request.auth.uid == userId;
+        }
+        match /records/{recordId} {
+          allow read, write, delete: if request.auth.uid == userId;
+        }
+      }
+      
+      match /schedules/{scheduleId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+      
+      match /notes/{noteId} {
+        allow read, write, delete: if request.auth.uid == userId;
+      }
+
+      match /plans/{planId} {
+        allow read, write, delete: if request.auth.uid == userId;
+      }
+
+      match /reminders/{reminderId} {
+          allow read, write, delete: if request.auth.uid == userId;
+      }
+      
+      match /assistantMessages/{messageId} {
+        allow read, write, delete: if request.auth.uid == userId;
+      }
+    }
+
+    // Forum rules
+    match /forum/{postId} {
+      // Any authenticated user can read posts
+      allow read: if request.auth != null;
+      // Only authenticated users can create posts
+      allow create: if request.auth != null;
+      // Only the author of the post or an admin can update/delete it
+      allow update, delete: if request.auth != null && (resource.data.author.uid == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+
+      match /replies/{replyId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        allow update, delete: if request.auth != null && (resource.data.author.uid == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+
+        match /comments/{commentId} {
+           allow read: if request.auth != null;
+           allow create: if request.auth != null;
+           allow update, delete: if request.auth != null && (resource.data.author.uid == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+        }
+      }
+    }
+  }
+}

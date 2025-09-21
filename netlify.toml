@@ -1,0 +1,20 @@
+# Netlify için derleme ayarları.
+# Bu dosya, Netlify'ın Next.js projenizi nasıl derleyeceğini ve yayınlayacağını belirler.
+
+[build]
+  # Next.js projesini derlemek için kullanılacak komut.
+  command = "next build"
+  
+  # Derleme sonrası oluşturulan ve yayınlanacak olan klasör.
+  # Next.js için bu klasör her zaman ".next" olmalıdır.
+  publish = ".next"
+
+[dev]
+  # Yerel geliştirme ortamı için port
+  port = 3000
+
+# E-postalar: Next.js projeniz için gerekli olan Netlify eklentisi.
+# Bu eklenti, yönlendirmeleri, sunucu tarafı işlevleri ve resim optimizasyonunu
+# Netlify platformuyla uyumlu hale getirir.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
