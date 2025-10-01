@@ -112,8 +112,9 @@ export function useWeeklySchedule(userId?: string) {
 
         if (lessonData) { // Add or update a lesson
             const cleanLessonData = { ...lessonData };
-            if (cleanLessonData.planId === undefined) {
-                delete cleanLessonData.planId;
+            // Ensure planId is either a string or deleted, never undefined
+            if (!cleanLessonData.planId) {
+                delete (cleanLessonData as Partial<typeof cleanLessonData>).planId;
             }
 
             if (existingLessonIndex > -1) {
