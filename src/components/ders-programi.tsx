@@ -264,22 +264,19 @@ export default function DersProgrami() {
 
   const handleLessonClick = (day: Day, slotIndex: number, lesson: Lesson | null) => {
     if (clickTimeoutRef.current) {
-        clearTimeout(clickTimeoutRef.current);
-        clickTimeoutRef.current = null;
-        // Double-click
-        openEditLessonModal(day, slotIndex, lesson);
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+      // This is a double click, open the edit modal
+      openEditLessonModal(day, slotIndex, lesson);
     } else {
-        clickTimeoutRef.current = setTimeout(() => {
-            // Single-click
-            const relatedPlan = findRelatedPlan(lesson);
-            if (relatedPlan) {
-                viewFile(relatedPlan, getAcademicWeek(new Date()));
-            } else {
-                // If no plan, open edit modal on single click
-                openEditLessonModal(day, slotIndex, lesson);
-            }
-            clickTimeoutRef.current = null;
-        }, 250); // 250ms delay to differentiate single/double click
+      clickTimeoutRef.current = setTimeout(() => {
+        // This is a single click
+        const relatedPlan = findRelatedPlan(lesson);
+        if (relatedPlan) {
+          viewFile(relatedPlan, getAcademicWeek(new Date()));
+        }
+        clickTimeoutRef.current = null;
+      }, 250); // 250ms delay to differentiate single/double click
     }
   };
 
@@ -509,4 +506,3 @@ export default function DersProgrami() {
     </div>
   );
 }
-
