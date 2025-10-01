@@ -140,7 +140,8 @@ export function useWeeklySchedule(userId?: string) {
             }
         }
 
-        await updateDoc(scheduleDocRef, { [day]: updatedLessons });
+        // Use setDoc with merge: true to handle both creation and updates atomically.
+        await setDoc(scheduleDocRef, { [day]: updatedLessons }, { merge: true });
 
     } catch (error) {
          console.error("Error updating lesson:", error);
