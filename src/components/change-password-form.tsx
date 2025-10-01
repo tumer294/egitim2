@@ -17,9 +17,19 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+    SheetClose,
+} from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const formSchema = z.object({
     currentPassword: z.string().min(1, { message: 'Mevcut şifre gereklidir.' }),
@@ -43,6 +53,7 @@ export function ChangePasswordForm({ onPasswordChanged, onClose, isOpen }: Chang
   const { changePassword } = useAuth();
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const form = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(formSchema),
@@ -76,6 +87,80 @@ export function ChangePasswordForm({ onPasswordChanged, onClose, isOpen }: Chang
     onClose();
   }
 
+  const formContent = (
+    <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <FormField
+            control={form.control}
+            name="currentPassword"
+            render={({ field }) => (
+            <FormItem>
+                <FormLabel>Mevcut Şifre</FormLabel>
+                <FormControl>
+                <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+            </FormItem>
+            )}
+        />
+        <FormField
+            control={form.control}
+            name="newPassword"
+            render={({ field }) => (
+            <FormItem>
+                <FormLabel>Yeni Şifre</FormLabel>
+                <FormControl>
+                <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+            </FormItem>
+            )}
+        />
+            <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+            <FormItem>
+                <FormLabel>Yeni Şifreyi Onayla</FormLabel>
+                <FormControl>
+                <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+            </FormItem>
+            )}
+        />
+        <DialogFooter>
+            <DialogClose asChild>
+                <Button type="button" variant="secondary" disabled={isLoading}>
+                    İptal
+                </Button>
+            </DialogClose>
+            <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                Şifreyi Kaydet
+            </Button>
+        </DialogFooter>
+        </form>
+    </Form>
+  );
+
+  if (isMobile) {
+    return (
+        <Sheet open={isOpen} onOpenChange={handleClose}>
+            <SheetContent side="bottom" className="rounded-t-xl">
+                 <SheetHeader>
+                    <SheetTitle>Şifreyi Değiştir</SheetTitle>
+                    <SheetDescription>
+                        Güvenliğiniz için yeni bir şifre belirleyin.
+                    </SheetDescription>
+                </SheetHeader>
+                {formContent}
+            </SheetContent>
+        </Sheet>
+    )
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -85,61 +170,7 @@ export function ChangePasswordForm({ onPasswordChanged, onClose, isOpen }: Chang
             Güvenliğiniz için yeni bir şifre belirleyin.
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <FormField
-              control={form.control}
-              name="currentPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Mevcut Şifre</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="newPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Yeni Şifre</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Yeni Şifreyi Onayla</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary" disabled={isLoading}>
-                        İptal
-                    </Button>
-                </DialogClose>
-                <Button type="submit" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    Şifreyi Kaydet
-                </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+        {formContent}
       </DialogContent>
     </Dialog>
   );

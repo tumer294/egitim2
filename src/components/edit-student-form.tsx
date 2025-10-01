@@ -17,7 +17,17 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+    SheetClose,
+} from '@/components/ui/sheet';
 import type { Student } from '@/lib/types';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const formSchema = z.object({
   studentNumber: z.coerce.number().positive({ message: 'Okul numarası pozitif bir sayı olmalıdır.' }),
@@ -34,6 +44,7 @@ type EditStudentFormProps = {
 };
 
 export function EditStudentForm({ student, onUpdateStudent, onClose, isOpen, existingStudents }: EditStudentFormProps) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   
   const dynamicFormSchema = formSchema.refine(
     (data) => !existingStudents.some(s => s.id !== student.id && s.studentNumber === data.studentNumber),
@@ -69,6 +80,76 @@ export function EditStudentForm({ student, onUpdateStudent, onClose, isOpen, exi
     });
   }
 
+  const formContent = (
+    <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <FormField
+            control={form.control}
+            name="studentNumber"
+            render={({ field }) => (
+            <FormItem>
+                <FormLabel>Okul Numarası</FormLabel>
+                <FormControl>
+                <Input type="number" placeholder="Örn: 123" {...field} />
+                </FormControl>
+                <FormMessage />
+            </FormItem>
+            )}
+        />
+        <FormField
+            control={form.control}
+            name="firstName"
+            render={({ field }) => (
+            <FormItem>
+                <FormLabel>Adı</FormLabel>
+                <FormControl>
+                <Input placeholder="Örn: Ahmet" {...field} />
+                </FormControl>
+                <FormMessage />
+            </FormItem>
+            )}
+        />
+        <FormField
+            control={form.control}
+            name="lastName"
+            render={({ field }) => (
+            <FormItem>
+                <FormLabel>Soyadı</FormLabel>
+                <FormControl>
+                <Input placeholder="Örn: Yılmaz" {...field} />
+                </FormControl>
+                <FormMessage />
+            </FormItem>
+            )}
+        />
+        <DialogFooter>
+            <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                    İptal
+                </Button>
+            </DialogClose>
+            <Button type="submit">Değişiklikleri Kaydet</Button>
+        </DialogFooter>
+        </form>
+    </Form>
+  );
+
+  if (isMobile) {
+    return (
+        <Sheet open={isOpen} onOpenChange={onClose}>
+            <SheetContent side="bottom" className="rounded-t-xl">
+                 <SheetHeader>
+                    <SheetTitle>Öğrenci Bilgilerini Düzenle</SheetTitle>
+                    <SheetDescription>
+                        Öğrencinin bilgilerini güncelleyin. Değişiklikleri kaydetmek için butona tıklayın.
+                    </SheetDescription>
+                </SheetHeader>
+                {formContent}
+            </SheetContent>
+        </Sheet>
+    )
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -78,57 +159,7 @@ export function EditStudentForm({ student, onUpdateStudent, onClose, isOpen, exi
             Öğrencinin bilgilerini güncelleyin. Değişiklikleri kaydetmek için butona tıklayın.
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <FormField
-              control={form.control}
-              name="studentNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Okul Numarası</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="Örn: 123" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="firstName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Adı</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Örn: Ahmet" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="lastName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Soyadı</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Örn: Yılmaz" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary">
-                        İptal
-                    </Button>
-                </DialogClose>
-                <Button type="submit">Değişiklikleri Kaydet</Button>
-            </DialogFooter>
-          </form>
-        </Form>
+        {formContent}
       </DialogContent>
     </Dialog>
   );

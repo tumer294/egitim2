@@ -34,6 +34,15 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+    SheetClose,
+} from '@/components/ui/sheet';
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -50,6 +59,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import stringToColor from 'string-to-color';
 import { cn } from '@/lib/utils';
 import { Separator } from './ui/separator';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const gradeLevels = ["1. Sınıf", "2. Sınıf", "3. Sınıf", "4. Sınıf", "5. Sınıf", "6. Sınıf", "7. Sınıf", "8. Sınıf", "9. Sınıf", "10. Sınıf", "11. Sınıf", "12. Sınıf", "Okul Öncesi"];
 
@@ -76,6 +86,8 @@ type AddLessonFormProps = {
 };
 
 export function AddLessonForm({ isOpen, onClose, day, lessonSlot, lesson, onSave, onClear, timeSlot, relatedPlan, onViewPlan, availablePlans, availableLessons }: AddLessonFormProps) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -118,43 +130,33 @@ export function AddLessonForm({ isOpen, onClose, day, lessonSlot, lesson, onSave
   const selectedGrade = form.watch('grade');
   const filteredPlans = availablePlans.filter(p => !selectedGrade || p.grade === selectedGrade);
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader className="text-left">
-          <DialogTitle>{lesson?.subject ? 'Dersi Düzenle' : 'Yeni Ders Ekle'}</DialogTitle>
-          <DialogDescription>
-            {day} günü, {timeSlot} saati için bilgileri girin.
-          </DialogDescription>
-        </DialogHeader>
-        
-        {!lesson && availableLessons.length > 0 && (
-            <>
-                <div className='py-2'>
-                    <h4 className='text-sm font-medium mb-2 text-center'>Hızlı Ekle</h4>
-                    <div className='flex flex-wrap items-center justify-center gap-2'>
-                        {availableLessons.map((l, i) => (
-                            <Button 
-                                key={i}
-                                type="button"
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => handleQuickAdd(l)}
-                                className='h-auto py-1 px-2 text-xs'
-                            >
-                                <div className='h-2 w-2 rounded-full mr-2' style={{backgroundColor: stringToColor(l.subject)}}></div>
-                                {l.grade} - {l.class} {l.subject}
-                            </Button>
-                        ))}
-                    </div>
-                </div>
-                <Separator/>
-            </>
-        )}
-
-        <Form {...form}>
+  const FormContent = (
+     <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="max-w-xs mx-auto space-y-4">
+            <div className="space-y-4">
+              {!lesson && availableLessons.length > 0 && (
+                  <>
+                      <div className='py-2'>
+                          <h4 className='text-sm font-medium mb-2 text-center'>Hızlı Ekle</h4>
+                          <div className='flex flex-wrap items-center justify-center gap-2'>
+                              {availableLessons.map((l, i) => (
+                                  <Button 
+                                      key={i}
+                                      type="button"
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={() => handleQuickAdd(l)}
+                                      className='h-auto py-1 px-2 text-xs'
+                                  >
+                                      <div className='h-2 w-2 rounded-full mr-2' style={{backgroundColor: stringToColor(l.subject)}}></div>
+                                      {l.grade} - {l.class} {l.subject}
+                                  </Button>
+                              ))}
+                          </div>
+                      </div>
+                      <Separator/>
+                  </>
+              )}
               <FormField
                 control={form.control}
                 name="subject"
@@ -234,7 +236,7 @@ export function AddLessonForm({ isOpen, onClose, day, lessonSlot, lesson, onSave
               />
             </div>
 
-            <DialogFooter className='sm:justify-between pt-4'>
+            <DialogFooter className='sm:justify-between pt-4 flex-col sm:flex-row gap-2'>
                 <div className='flex items-center gap-2'>
                     {lesson && (
                         <AlertDialog>
@@ -279,14 +281,42 @@ export function AddLessonForm({ isOpen, onClose, day, lessonSlot, lesson, onSave
                     )}
                 </div>
                 <div className='flex items-center gap-2 mt-2 sm:mt-0'>
-                    <DialogClose asChild>
-                        <Button type="button" variant="secondary">İptal</Button>
-                    </DialogClose>
+                    <Button type="button" variant="secondary" onClick={onClose}>İptal</Button>
                     <Button type="submit">Dersi Kaydet</Button>
                 </div>
             </DialogFooter>
           </form>
         </Form>
+  );
+
+  if (isMobile) {
+    return (
+        <Sheet open={isOpen} onOpenChange={onClose}>
+            <SheetContent side="bottom" className="rounded-t-xl h-[90vh] overflow-y-auto">
+                 <SheetHeader className="text-left">
+                    <SheetTitle>{lesson?.subject ? 'Dersi Düzenle' : 'Yeni Ders Ekle'}</SheetTitle>
+                    <SheetDescription>
+                        {day} günü, {timeSlot} saati için bilgileri girin.
+                    </SheetDescription>
+                </SheetHeader>
+                <div className='py-4'>
+                 {FormContent}
+                </div>
+            </SheetContent>
+        </Sheet>
+    )
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="text-left">
+          <DialogTitle>{lesson?.subject ? 'Dersi Düzenle' : 'Yeni Ders Ekle'}</DialogTitle>
+          <DialogDescription>
+            {day} günü, {timeSlot} saati için bilgileri girin.
+          </DialogDescription>
+        </DialogHeader>
+        {FormContent}
       </DialogContent>
     </Dialog>
   );

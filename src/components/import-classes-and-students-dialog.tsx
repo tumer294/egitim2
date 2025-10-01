@@ -13,9 +13,18 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+} from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
 import { parseStudentListAction } from '@/app/actions';
 import type { StudentListParserOutput } from '@/ai/flows/student-list-parser';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 type ClassImportData = StudentListParserOutput['classes'][0];
 
@@ -37,6 +46,7 @@ export function ImportClassesAndStudentsDialog({ onImport }: ImportClassesAndStu
   const [parsedData, setParsedData] = React.useState<ClassImportData[]>([]);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const resetState = () => {
     setIsLoading(false);
@@ -128,24 +138,9 @@ export function ImportClassesAndStudentsDialog({ onImport }: ImportClassesAndStu
     }
   }, [open]);
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="w-full">
-          <Upload className="mr-2 h-4 w-4" />
-          Toplu Sınıf/Öğrenci Aktar
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Sınıfları ve Öğrencileri Toplu Aktar</DialogTitle>
-          <DialogDescription>
-            E-Okul'dan indirdiğiniz PDF veya Excel formatındaki öğrenci listesi dosyasını yükleyin.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div 
+  const content = (
+     <>
+        <div 
             className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary"
             onClick={() => fileInputRef.current?.click()}
           >
@@ -190,16 +185,66 @@ export function ImportClassesAndStudentsDialog({ onImport }: ImportClassesAndStu
               </div>
             </div>
           )}
+     </>
+  );
+
+  const footer = (
+    <div className='w-full flex flex-col sm:flex-row sm:justify-end gap-2'>
+        <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+            İptal
+        </Button>
+        <Button onClick={handleConfirmImport} disabled={isLoading || parsedData.length === 0}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+            Aktarımı Onayla
+        </Button>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" className="w-full">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Toplu Sınıf/Öğrenci Aktar
+                </Button>
+            </DialogTrigger>
+            <SheetContent side="bottom" className="h-[90vh] overflow-y-auto flex flex-col">
+                 <SheetHeader>
+                    <SheetTitle>Sınıfları ve Öğrencileri Toplu Aktar</SheetTitle>
+                    <SheetDescription>
+                        E-Okul'dan indirdiğiniz PDF veya Excel formatındaki öğrenci listesi dosyasını yükleyin.
+                    </SheetDescription>
+                </SheetHeader>
+                <div className='py-4 space-y-4 flex-1'>{content}</div>
+                <SheetFooter>{footer}</SheetFooter>
+            </SheetContent>
+        </Dialog>
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full">
+          <Upload className="mr-2 h-4 w-4" />
+          Toplu Sınıf/Öğrenci Aktar
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Sınıfları ve Öğrencileri Toplu Aktar</DialogTitle>
+          <DialogDescription>
+            E-Okul'dan indirdiğiniz PDF veya Excel formatındaki öğrenci listesi dosyasını yükleyin.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+            {content}
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-            İptal
-          </Button>
-          <Button onClick={handleConfirmImport} disabled={isLoading || parsedData.length === 0}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-            Aktarımı Onayla
-          </Button>
+          {footer}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -11,6 +10,15 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+    SheetClose,
+} from '@/components/ui/sheet';
 import type { LessonPlanEntry } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -18,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, List } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 
 type PlanViewerProps = {
@@ -34,6 +43,7 @@ export function PlanViewer({ isOpen, onClose, title, entries, startWeek = 1 }: P
     const [currentWeekIndex, setCurrentWeekIndex] = React.useState(0);
     const [viewMode, setViewMode] = React.useState<ViewMode>('kazanim');
     const [activeTab, setActiveTab] = React.useState<string>('kazanim');
+    const isMobile = useMediaQuery("(max-width: 768px)");
 
     React.useEffect(() => {
         if(isOpen && entries.length > 0) {
@@ -97,6 +107,80 @@ export function PlanViewer({ isOpen, onClose, title, entries, startWeek = 1 }: P
             default: return menuItems.find(item => item.id === viewMode)?.label || 'Detay';
         }
     }
+    
+    const content = (
+        <>
+            <div className='flex-1 overflow-y-auto pr-2 space-y-4'>
+                <div className='flex items-center justify-between'>
+                     <Tabs value={activeTab} onValueChange={handleTabChange}>
+                        <TabsList>
+                            <TabsTrigger value="kazanim">Kazanım</TabsTrigger>
+                            <TabsTrigger value="konu">Konu</TabsTrigger>
+                            {activeTab === 'menu-item' && (
+                                <TabsTrigger value="menu-item" className="hidden data-[state=active]:flex">{getActiveTitle()}</TabsTrigger>
+                            )}
+                        </TabsList>
+                     </Tabs>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <List className='h-5 w-5'/>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {menuItems.map(item => (
+                                <DropdownMenuItem key={item.id} onSelect={() => handleMenuSelect(item.id)}>
+                                    {item.label}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                     </DropdownMenu>
+                </div>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className='text-base'>{getActiveTitle()}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                         <p className="text-sm whitespace-pre-wrap">{renderContent() || 'İçerik bulunmuyor.'}</p>
+                    </CardContent>
+                </Card>
+            </div>
+        </>
+    );
+
+    const footer = (
+        <div className='flex items-center gap-2'>
+            <Button variant="outline" size="sm" onClick={handlePrevWeek} disabled={currentWeekIndex === 0}>
+                <ChevronLeft className="mr-1 h-4 w-4" /> Önceki
+            </Button>
+            <span className="font-semibold text-sm tabular-nums">
+               {currentEntry.week || `${currentWeekIndex + 1}. Hafta`}
+            </span>
+            <Button variant="outline" size="sm" onClick={handleNextWeek} disabled={currentWeekIndex === entries.length - 1}>
+               Sonraki <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+        </div>
+    );
+
+    if (isMobile) {
+        return (
+            <Sheet open={isOpen} onOpenChange={onClose}>
+                <SheetContent side="bottom" className="h-[90vh] flex flex-col">
+                    <SheetHeader>
+                        <SheetTitle className='text-lg'>{title}</SheetTitle>
+                        <SheetDescription>
+                            {currentEntry.unit}
+                        </SheetDescription>
+                    </SheetHeader>
+                    {content}
+                    <SheetFooter className="pt-4 border-t flex-row items-center justify-center w-full">
+                        {footer}
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
+        )
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -107,57 +191,9 @@ export function PlanViewer({ isOpen, onClose, title, entries, startWeek = 1 }: P
                         {currentEntry.unit}
                     </DialogDescription>
                 </DialogHeader>
-                
-                <div className='flex-1 overflow-y-auto pr-2 space-y-4'>
-                    <div className='flex items-center justify-between'>
-                         <Tabs value={activeTab} onValueChange={handleTabChange}>
-                            <TabsList>
-                                <TabsTrigger value="kazanim">Kazanım</TabsTrigger>
-                                <TabsTrigger value="konu">Konu</TabsTrigger>
-                                {activeTab === 'menu-item' && (
-                                    <TabsTrigger value="menu-item" className="hidden data-[state=active]:flex">{getActiveTitle()}</TabsTrigger>
-                                )}
-                            </TabsList>
-                         </Tabs>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                    <List className='h-5 w-5'/>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                {menuItems.map(item => (
-                                    <DropdownMenuItem key={item.id} onSelect={() => handleMenuSelect(item.id)}>
-                                        {item.label}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                         </DropdownMenu>
-                    </div>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className='text-base'>{getActiveTitle()}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                             <p className="text-sm whitespace-pre-wrap">{renderContent() || 'İçerik bulunmuyor.'}</p>
-                        </CardContent>
-                    </Card>
-                </div>
-
-
-                <DialogFooter className="pt-4 border-t flex flex-row items-center justify-center w-full">
-                    <div className='flex items-center gap-2'>
-                        <Button variant="outline" size="sm" onClick={handlePrevWeek} disabled={currentWeekIndex === 0}>
-                            <ChevronLeft className="mr-1 h-4 w-4" /> Önceki
-                        </Button>
-                        <span className="font-semibold text-sm tabular-nums">
-                           {currentEntry.week || `${currentWeekIndex + 1}. Hafta`}
-                        </span>
-                        <Button variant="outline" size="sm" onClick={handleNextWeek} disabled={currentWeekIndex === entries.length - 1}>
-                           Sonraki <ChevronRight className="ml-1 h-4 w-4" />
-                        </Button>
-                    </div>
+                {content}
+                <DialogFooter className="pt-4 border-t flex-row items-center justify-center w-full">
+                   {footer}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

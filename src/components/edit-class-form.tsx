@@ -17,7 +17,17 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+    SheetClose,
+} from '@/components/ui/sheet';
 import type { ClassInfo } from '@/lib/types';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const formSchema = z.object({
   className: z.string().min(2, { message: 'Sınıf adı en az 2 karakter olmalıdır.' }),
@@ -32,6 +42,7 @@ type EditClassFormProps = {
 };
 
 export function EditClassForm({ classInfo, onUpdateClass, onClose, isOpen, existingClasses }: EditClassFormProps) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   
   const dynamicFormSchema = formSchema.refine(
     (data) => !existingClasses.some(c => c.id !== classInfo.id && c.name.toLowerCase() === data.className.toLowerCase()),
@@ -60,6 +71,50 @@ export function EditClassForm({ classInfo, onUpdateClass, onClose, isOpen, exist
     onUpdateClass(classInfo.id, values.className);
   }
 
+  const formContent = (
+     <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <FormField
+            control={form.control}
+            name="className"
+            render={({ field }) => (
+            <FormItem>
+                <FormLabel>Sınıf Adı</FormLabel>
+                <FormControl>
+                <Input placeholder="Örn: 8/C" {...field} />
+                </FormControl>
+                <FormMessage />
+            </FormItem>
+            )}
+        />
+        <DialogFooter>
+            <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                    İptal
+                </Button>
+            </DialogClose>
+            <Button type="submit">Değişiklikleri Kaydet</Button>
+        </DialogFooter>
+        </form>
+    </Form>
+  );
+
+  if (isMobile) {
+    return (
+        <Sheet open={isOpen} onOpenChange={onClose}>
+            <SheetContent side="bottom" className="rounded-t-xl">
+                 <SheetHeader>
+                    <SheetTitle>Sınıf Adını Düzenle</SheetTitle>
+                    <SheetDescription>
+                        Sınıfın adını güncelleyin ve değişiklikleri kaydedin.
+                    </SheetDescription>
+                </SheetHeader>
+                {formContent}
+            </SheetContent>
+        </Sheet>
+    )
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -69,31 +124,7 @@ export function EditClassForm({ classInfo, onUpdateClass, onClose, isOpen, exist
             Sınıfın adını güncelleyin ve değişiklikleri kaydedin.
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <FormField
-              control={form.control}
-              name="className"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Sınıf Adı</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Örn: 8/C" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary">
-                        İptal
-                    </Button>
-                </DialogClose>
-                <Button type="submit">Değişiklikleri Kaydet</Button>
-            </DialogFooter>
-          </form>
-        </Form>
+        {formContent}
       </DialogContent>
     </Dialog>
   );

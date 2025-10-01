@@ -16,12 +16,21 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+} from '@/components/ui/sheet';
 import type { Note, NoteChecklistItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Palette, Trash2, Plus, CheckSquare, ClipboardPaste, Type as TypeIcon } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Checkbox } from './ui/checkbox';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const noteColors = [
   'bg-card',
@@ -64,6 +73,7 @@ type EditNoteDialogProps = {
 
 export function EditNoteDialog({ note, onUpdate, onClose, isOpen }: EditNoteDialogProps) {
   const { toast } = useToast();
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const form = useForm<EditNoteFormValues>({
     resolver: zodResolver(formSchema),
@@ -150,6 +160,135 @@ export function EditNoteDialog({ note, onUpdate, onClose, isOpen }: EditNoteDial
     }
   };
 
+  const formContent = (
+    <form onSubmit={form.handleSubmit(handleSubmit)}>
+        <div className="p-6 space-y-4">
+          <input
+            {...form.register('title')}
+            placeholder="Başlık"
+            className={cn("w-full text-lg font-semibold border-0 shadow-none focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground")}
+            style={{ color: watchTextColor }}
+          />
+          {watchType === 'text' ? (
+            <Textarea
+                {...form.register('content')}
+                placeholder="Bir not alın..."
+                rows={8}
+                className={cn("w-full border-0 shadow-none focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground")}
+                style={{ color: watchTextColor }}
+            />
+          ) : (
+            <div className='space-y-2'>
+                {(watchItems || []).map(item => (
+                    <div key={item.id} className="flex items-center gap-2 group">
+                        <Checkbox 
+                            id={`item-edit-${item.id}`} 
+                            checked={item.isChecked}
+                            onCheckedChange={(checked) => handleItemCheckedChange(item.id, !!checked)}
+                            style={{borderColor: watchTextColor}}
+                        />
+                        <Input 
+                            value={item.text} 
+                            onChange={(e) => handleItemChange(item.id, e.target.value)}
+                            className={cn(
+                                "flex-1 border-0 shadow-none focus-visible:ring-0 bg-transparent px-1 placeholder:text-muted-foreground",
+                                item.isChecked && "line-through"
+                            )}
+                            style={{ 
+                                color: watchTextColor,
+                                textDecorationColor: watchTextColor
+                            }}
+                            placeholder='Liste öğesi'
+                        />
+                         <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveItem(item.id)}
+                            className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 hover:bg-black/10"
+                            style={{color: watchTextColor}}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                ))}
+                <div className='flex items-center gap-2 border-t pt-2' style={{borderColor: `${watchTextColor}40`}}>
+                    <Button type="button" variant="ghost" onClick={handleAddNewItem} style={{color: watchTextColor}} className="opacity-70 hover:opacity-100 w-full justify-start">
+                        <Plus className='mr-2 h-4 w-4'/> Öğe Ekle
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={handlePasteList} style={{color: watchTextColor}} className="opacity-70 hover:opacity-100 w-full justify-start">
+                        <ClipboardPaste className='mr-2 h-4 w-4'/> Yapıştır
+                    </Button>
+                </div>
+            </div>
+          )}
+        </div>
+        <SheetFooter className={cn("p-4 pt-0 mt-4 flex justify-between items-center bg-transparent", isMobile ? "flex-col gap-2" : "")}>
+            <div className='flex items-center gap-1'>
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    onClick={() => form.setValue('type', watchType === 'text' ? 'checklist' : 'text')}
+                    className={cn('text-muted-foreground hover:text-foreground rounded-full', watchType === 'checklist' && 'bg-primary/20 text-primary')}
+                >
+                    <CheckSquare />
+                </Button>
+               <Popover>
+                  <PopoverTrigger asChild>
+                      <Button type="button" variant="secondary" size="icon" className='text-muted-foreground hover:text-foreground rounded-full'>
+                          <Palette />
+                      </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-2">
+                    <div className="grid grid-cols-7 gap-1">
+                        {noteColors.map(color => (
+                            <button key={color} type="button" onClick={() => form.setValue('color', color)} className={cn("h-8 w-8 rounded-full border", color)} />
+                        ))}
+                    </div>
+                  </PopoverContent>
+               </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                      <Button type="button" variant="secondary" size="icon" className='text-muted-foreground hover:text-foreground rounded-full'>
+                          <TypeIcon />
+                      </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-2">
+                    <div className="grid grid-cols-7 gap-1">
+                        {textColors.map(color => (
+                            <button key={color} type="button" onClick={() => form.setValue('textColor', color)} className={cn("h-8 w-8 rounded-full border")} style={{backgroundColor: color}} />
+                        ))}
+                    </div>
+                  </PopoverContent>
+               </Popover>
+           </div>
+           <div className={cn(isMobile && "w-full flex flex-col gap-2")}>
+              <Button type="button" variant="ghost" onClick={onClose} style={{color: watchTextColor}} className="opacity-70 hover:opacity-100">
+                Kapat
+              </Button>
+              <Button type="submit">Değişiklikleri Kaydet</Button>
+           </div>
+        </SheetFooter>
+      </form>
+  );
+
+  if (isMobile) {
+    return (
+        <Sheet open={isOpen} onOpenChange={onClose}>
+            <SheetContent side="bottom" className={cn("p-0 h-[90vh] flex flex-col", watchColor)}>
+                 <SheetHeader className="sr-only">
+                    <SheetTitle>Notu Düzenle</SheetTitle>
+                    <SheetDescription>Notun başlığını, içeriğini ve rengini düzenleyin.</SheetDescription>
+                </SheetHeader>
+                <div className='flex-1 overflow-y-auto'>
+                    {formContent}
+                </div>
+            </SheetContent>
+        </Sheet>
+    )
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn("max-w-xl p-0", watchColor)}>
@@ -157,116 +296,7 @@ export function EditNoteDialog({ note, onUpdate, onClose, isOpen }: EditNoteDial
             <DialogTitle>Notu Düzenle</DialogTitle>
             <DialogDescription>Notun başlığını, içeriğini ve rengini düzenleyin.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(handleSubmit)}>
-            <div className="p-6 space-y-4">
-              <input
-                {...form.register('title')}
-                placeholder="Başlık"
-                className={cn("w-full text-lg font-semibold border-0 shadow-none focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground")}
-                style={{ color: watchTextColor }}
-              />
-              {watchType === 'text' ? (
-                <Textarea
-                    {...form.register('content')}
-                    placeholder="Bir not alın..."
-                    rows={8}
-                    className={cn("w-full border-0 shadow-none focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground")}
-                    style={{ color: watchTextColor }}
-                />
-              ) : (
-                <div className='space-y-2'>
-                    {(watchItems || []).map(item => (
-                        <div key={item.id} className="flex items-center gap-2 group">
-                            <Checkbox 
-                                id={`item-edit-${item.id}`} 
-                                checked={item.isChecked}
-                                onCheckedChange={(checked) => handleItemCheckedChange(item.id, !!checked)}
-                                style={{borderColor: watchTextColor}}
-                            />
-                            <Input 
-                                value={item.text} 
-                                onChange={(e) => handleItemChange(item.id, e.target.value)}
-                                className={cn(
-                                    "flex-1 border-0 shadow-none focus-visible:ring-0 bg-transparent px-1 placeholder:text-muted-foreground",
-                                    item.isChecked && "line-through"
-                                )}
-                                style={{ 
-                                    color: watchTextColor,
-                                    textDecorationColor: watchTextColor
-                                }}
-                                placeholder='Liste öğesi'
-                            />
-                             <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveItem(item.id)}
-                                className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 hover:bg-black/10"
-                                style={{color: watchTextColor}}
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    ))}
-                    <div className='flex items-center gap-2 border-t pt-2' style={{borderColor: `${watchTextColor}40`}}>
-                        <Button type="button" variant="ghost" onClick={handleAddNewItem} style={{color: watchTextColor}} className="opacity-70 hover:opacity-100 w-full justify-start">
-                            <Plus className='mr-2 h-4 w-4'/> Öğe Ekle
-                        </Button>
-                        <Button type="button" variant="ghost" onClick={handlePasteList} style={{color: watchTextColor}} className="opacity-70 hover:opacity-100 w-full justify-start">
-                            <ClipboardPaste className='mr-2 h-4 w-4'/> Yapıştır
-                        </Button>
-                    </div>
-                </div>
-              )}
-            </div>
-            <DialogFooter className="p-4 pt-0 mt-4 flex justify-between items-center bg-transparent">
-                <div className='flex items-center gap-1'>
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => form.setValue('type', watchType === 'text' ? 'checklist' : 'text')}
-                        className={cn('text-muted-foreground hover:text-foreground rounded-full', watchType === 'checklist' && 'bg-primary/20 text-primary')}
-                    >
-                        <CheckSquare />
-                    </Button>
-                   <Popover>
-                      <PopoverTrigger asChild>
-                          <Button type="button" variant="secondary" size="icon" className='text-muted-foreground hover:text-foreground rounded-full'>
-                              <Palette />
-                          </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-2">
-                        <div className="grid grid-cols-7 gap-1">
-                            {noteColors.map(color => (
-                                <button key={color} type="button" onClick={() => form.setValue('color', color)} className={cn("h-8 w-8 rounded-full border", color)} />
-                            ))}
-                        </div>
-                      </PopoverContent>
-                   </Popover>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                          <Button type="button" variant="secondary" size="icon" className='text-muted-foreground hover:text-foreground rounded-full'>
-                              <TypeIcon />
-                          </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-2">
-                        <div className="grid grid-cols-7 gap-1">
-                            {textColors.map(color => (
-                                <button key={color} type="button" onClick={() => form.setValue('textColor', color)} className={cn("h-8 w-8 rounded-full border")} style={{backgroundColor: color}} />
-                            ))}
-                        </div>
-                      </PopoverContent>
-                   </Popover>
-               </div>
-               <div>
-                  <Button type="button" variant="ghost" onClick={onClose} style={{color: watchTextColor}} className="opacity-70 hover:opacity-100">
-                    Kapat
-                  </Button>
-                  <Button type="submit">Değişiklikleri Kaydet</Button>
-               </div>
-            </DialogFooter>
-          </form>
+        {formContent}
       </DialogContent>
     </Dialog>
   );

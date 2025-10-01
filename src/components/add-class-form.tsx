@@ -9,11 +9,31 @@ import { Plus, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+    SheetTrigger,
+    SheetClose,
+} from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import type { ClassInfo, Student } from '@/lib/types';
 import { ImportClassesAndStudentsDialog } from './import-classes-and-students-dialog';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const formSchema = z.object({
   className: z.string().min(2, { message: 'Sınıf adı en az 2 karakter olmalıdır.' }),
@@ -28,6 +48,7 @@ type AddClassFormProps = {
 export function AddClassForm({ onAddClass, onBulkImport, existingClasses }: AddClassFormProps) {
   const { toast } = useToast();
   const [open, setOpen] = React.useState(false);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const dynamicFormSchema = formSchema.refine(
     (data) => !existingClasses.some(c => c.name.toLowerCase() === data.className.toLowerCase()),
@@ -65,64 +86,88 @@ export function AddClassForm({ onAddClass, onBulkImport, existingClasses }: AddC
     }
   }
 
+  const formContent = (
+     <>
+        <div className="space-y-2">
+            <h4 className="font-medium leading-none">Yeni Sınıf Oluştur</h4>
+            <p className="text-sm text-muted-foreground">Oluşturmak istediğiniz sınıfın adını girin.</p>
+        </div>
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+                control={form.control}
+                name="className"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Sınıf Adı</FormLabel>
+                    <FormControl>
+                    <Input placeholder="Örn: 8/C" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Ekleniyor...
+                </>
+                ) : (
+                'Sınıfı Ekle'
+                )}
+            </Button>
+            </form>
+        </Form>
+        
+        <div className="relative my-2">
+            <Separator />
+            <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-popover px-2 text-muted-foreground">
+                Veya
+            </span>
+            </div>
+        </div>
+        
+        <ImportClassesAndStudentsDialog onImport={onBulkImport} />
+    </>
+  );
+
+  if (isMobile) {
+    return (
+        <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+                <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Yeni Sınıf Ekle
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-xl">
+                 <SheetHeader>
+                    <SheetTitle>Yeni Sınıf Ekle</SheetTitle>
+                </SheetHeader>
+                <div className='py-4 space-y-4'>{formContent}</div>
+            </SheetContent>
+        </Sheet>
+    )
+  }
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
           Yeni Sınıf Ekle
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80">
+      </DialogTrigger>
+      <DialogContent className="w-80">
         <div className="grid gap-4">
-          <div className="space-y-2">
-            <h4 className="font-medium leading-none">Yeni Sınıf Oluştur</h4>
-            <p className="text-sm text-muted-foreground">Oluşturmak istediğiniz sınıfın adını girin.</p>
-          </div>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="className"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sınıf Adı</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Örn: 8/C" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Ekleniyor...
-                  </>
-                ) : (
-                  'Sınıfı Ekle'
-                )}
-              </Button>
-            </form>
-          </Form>
-          
-          <div className="relative my-2">
-            <Separator />
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-popover px-2 text-muted-foreground">
-                Veya
-              </span>
-            </div>
-          </div>
-          
-           <ImportClassesAndStudentsDialog onImport={onBulkImport} />
-
+            {formContent}
         </div>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }

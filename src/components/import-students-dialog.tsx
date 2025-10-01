@@ -14,10 +14,19 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+} from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from '@/hooks/use-toast';
 import type { Student } from '@/lib/types';
 import { Textarea } from './ui/textarea';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 type StudentImportData = Omit<Student, 'id' | 'classId'>;
 
@@ -37,6 +46,7 @@ export function ImportStudentsDialog({ onImport, classId, isFirstImport = false,
   const [skippedCount, setSkippedCount] = React.useState(0);
   const [pastedText, setPastedText] = React.useState('');
   const [activeTab, setActiveTab] = React.useState("paste");
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
 
   const resetState = () => {
@@ -195,17 +205,8 @@ export function ImportStudentsDialog({ onImport, classId, isFirstImport = false,
     </Button>
   );
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{triggerButton}</DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Öğrencileri İçe Aktar</DialogTitle>
-          <DialogDescription>
-            Öğrencileri Excel dosyası veya E-Okul'dan kopyala-yapıştır ile ekleyin.
-          </DialogDescription>
-        </DialogHeader>
-
+  const content = (
+    <>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="paste"><ClipboardPaste className="mr-2 h-4 w-4"/>E-Okul'dan Yapıştır</TabsTrigger>
@@ -271,17 +272,51 @@ export function ImportStudentsDialog({ onImport, classId, isFirstImport = false,
             </div>
         </div>
         )}
+    </>
+  );
 
-
-        <DialogFooter>
-          <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+  const footer = (
+    <div className='w-full flex flex-col sm:flex-row sm:justify-end gap-2'>
+        <Button type="button" variant="secondary" onClick={() => setOpen(false)} className="w-full sm:w-auto">
             İptal
-          </Button>
-          <Button onClick={handleConfirmImport} disabled={isLoading || importedStudents.length === 0}>
+        </Button>
+        <Button onClick={handleConfirmImport} disabled={isLoading || importedStudents.length === 0} className="w-full sm:w-auto">
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
             {importedStudents.length > 0 ? `${importedStudents.length} Öğrenciyi Aktar` : 'Onayla'}
-          </Button>
-        </DialogFooter>
+        </Button>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+            <SheetContent side="bottom" className="h-[90vh] overflow-y-auto flex flex-col">
+                 <SheetHeader>
+                    <SheetTitle>Öğrencileri İçe Aktar</SheetTitle>
+                    <SheetDescription>
+                        Öğrencileri Excel dosyası veya E-Okul'dan kopyala-yapıştır ile ekleyin.
+                    </SheetDescription>
+                </SheetHeader>
+                <div className='py-4 flex-1'>{content}</div>
+                <SheetFooter>{footer}</SheetFooter>
+            </SheetContent>
+        </Dialog>
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Öğrencileri İçe Aktar</DialogTitle>
+          <DialogDescription>
+            Öğrencileri Excel dosyası veya E-Okul'dan kopyala-yapıştır ile ekleyin.
+          </DialogDescription>
+        </DialogHeader>
+        {content}
+        <DialogFooter>{footer}</DialogFooter>
       </DialogContent>
     </Dialog>
   );
