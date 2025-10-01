@@ -111,12 +111,17 @@ export function useWeeklySchedule(userId?: string) {
         const existingLessonIndex = dayLessons.findIndex(l => l.lessonSlot === lessonSlot);
 
         if (lessonData) { // Add or update a lesson
+            const cleanLessonData = { ...lessonData };
+            if (cleanLessonData.planId === undefined) {
+                delete cleanLessonData.planId;
+            }
+
             if (existingLessonIndex > -1) {
                 // Update existing lesson: merge old data with new data from form
                 const existingLesson = dayLessons[existingLessonIndex];
                 const updatedLesson = {
                     ...existingLesson, // Keep old properties like id
-                    ...lessonData,      // Overwrite with new form data
+                    ...cleanLessonData,      // Overwrite with new form data
                     lessonSlot,
                     time: settings.timeSlots[lessonSlot] || '',
                 };
@@ -128,7 +133,7 @@ export function useWeeklySchedule(userId?: string) {
                     id: `${day}-${lessonSlot}-${new Date().getTime()}`,
                     lessonSlot,
                     time: settings.timeSlots[lessonSlot] || '',
-                    ...lessonData,
+                    ...cleanLessonData,
                 };
                 updatedLessons = [...dayLessons, newLesson];
             }
