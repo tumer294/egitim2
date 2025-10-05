@@ -1,21 +1,20 @@
-
 'use server';
 
-import { descriptionAutoFill } from '@/ai/flows/description-auto-fill.ts';
-import type { DescriptionAutoFillInput } from '@/ai/flows/description-auto-fill.ts';
-import { parseStudentList } from '@/ai/flows/student-list-parser.ts';
-import type { StudentListParserOutput } from '@/ai/flows/student-list-parser.ts';
-import { speechToNote } from '@/ai/flows/speech-to-note.ts';
-import type { SpeechToNoteInput } from '@/ai/flows/speech-to-note.ts';
-import { assistantFlow } from '@/ai/flows/assistant-flow.ts';
-import type { AssistantInput } from '@/ai/flows/assistant-flow.ts';
-import { generateIndividualReport } from '@/ai/flows/individual-student-report-flow.ts';
-import type { IndividualStudentReportInput, IndividualStudentReportOutput } from '@/ai/flows/individual-student-report-flow.ts';
+import { descriptionAutoFill } from '@/ai/flows/description-auto-fill';
+import type { DescriptionAutoFillInput } from '@/ai/flows/description-auto-fill';
+import { parseStudentList } from '@/ai/flows/student-list-parser';
+import type { StudentListParserOutput } from '@/ai/flows/student-list-parser';
+import { speechToNote } from '@/ai/flows/speech-to-note';
+import type { SpeechToNoteInput } from '@/ai/flows/speech-to-note';
+import { assistantFlow } from '@/ai/flows/assistant-flow';
+import type { AssistantInput } from '@/ai/flows/assistant-flow';
+import { generateIndividualReport } from '@/ai/flows/individual-student-report-flow';
+import type { IndividualStudentReportInput, IndividualStudentReportOutput } from '@/ai/flows/individual-student-report-flow';
 import { generateClassReport } from '@/ai/flows/class-report-flow.ts';
 import type { ClassReportInput, ClassReportOutput } from '@/ai/flows/class-report-flow.ts';
-import { generateForumAnswer } from '@/ai/flows/forum-assistant-flow.ts';
-import type { ForumAssistantInput } from '@/ai/flows/forum-assistant-flow.ts';
-import type { ForumAuthor, ForumReply } from '@/lib/types';
+import { generateForumAnswer } from '@/ai/flows/forum-assistant-flow';
+import type { ForumAssistantInput } from '@/ai/flows/forum-assistant-flow';
+import type { ForumAuthor, ForumReply, SurveyResult } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { addDoc, collection } from 'firebase/firestore';
 

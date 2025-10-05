@@ -211,11 +211,26 @@ function GunlukTakipPageContent() {
   const handleSetAllDescriptions = () => {
     if (!selectedClass || !dateStr || bulkNoteContent.trim() === '') return;
 
+    // Find student IDs that have at least one status event for the day
+    const studentIdsWithStatus = new Set(
+        dailyRecords
+            .filter(record => record.events.some(event => event.type === 'status'))
+            .map(record => record.studentId)
+    );
+
+    if (studentIdsWithStatus.size === 0) {
+        toast({
+            title: "Öğrenci Bulunamadı",
+            description: "Açıklama eklemek için önce en az bir öğrenciye durum girmelisiniz.",
+            variant: "destructive",
+        });
+        return;
+    }
+
     setDailyRecords(prev => {
-        const studentIds = students.map(s => s.id);
         const recordsMap = new Map(prev.map(r => [r.studentId, r]));
 
-        studentIds.forEach(studentId => {
+        studentIdsWithStatus.forEach(studentId => {
             const newEvent: RecordEvent = { id: new Date().toISOString() + studentId, type: 'note', value: bulkNoteContent };
             const existingRecord = recordsMap.get(studentId);
             const otherEvents = existingRecord ? existingRecord.events.filter(e => e.type !== 'note') : [];
@@ -496,15 +511,15 @@ function GunlukTakipPageContent() {
       <Dialog open={isBulkNoteOpen} onOpenChange={setIsBulkNoteOpen}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Tüm Sınıfa Açıklama Ekle</DialogTitle>
+                <DialogTitle>Durum Girilenlere Açıklama Ekle</DialogTitle>
                 <DialogDescription>
-                    Aşağıya yazdığınız açıklama, seçili sınıftaki tüm öğrencilere uygulanacaktır. Bu işlem mevcut açıklamaların üzerine yazacaktır.
+                    Aşağıya yazdığınız açıklama, yalnızca bugün için durumu girilmiş öğrencilere uygulanacaktır. Bu işlem mevcut açıklamaların üzerine yazacaktır.
                 </DialogDescription>
             </DialogHeader>
             <Textarea 
                 value={bulkNoteContent}
                 onChange={(e) => setBulkNoteContent(e.target.value)}
-                placeholder='Tüm sınıf için ortak bir açıklama yazın...'
+                placeholder='Ortak bir açıklama yazın...'
                 rows={5}
                 className='my-4'
             />
@@ -512,7 +527,7 @@ function GunlukTakipPageContent() {
                 <DialogClose asChild>
                     <Button variant="ghost">İptal</Button>
                 </DialogClose>
-                <Button onClick={handleSetAllDescriptions}>Tümüne Uygula</Button>
+                <Button onClick={handleSetAllDescriptions}>Uygula</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -528,3 +543,5 @@ export default function GunlukTakipPage() {
       </AuthGuard>
     );
   }
+
+    

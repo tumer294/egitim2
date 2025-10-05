@@ -103,7 +103,7 @@ export function EditNoteDialog({ note, onUpdate, onClose, isOpen }: EditNoteDial
         items: note.items || []
       });
     }
-  }, [note, form]);
+  }, [note, form, isOpen]);
 
   const handleSubmit = (values: EditNoteFormValues) => {
     // Clear content if it's a checklist, and items if it's text

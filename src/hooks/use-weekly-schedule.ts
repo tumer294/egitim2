@@ -111,18 +111,12 @@ export function useWeeklySchedule(userId?: string) {
         const existingLessonIndex = dayLessons.findIndex(l => l.lessonSlot === lessonSlot);
 
         if (lessonData) { // Add or update a lesson
-            const cleanLessonData = { ...lessonData };
-            // Ensure planId is either a string or deleted, never undefined
-            if (!cleanLessonData.planId) {
-                delete (cleanLessonData as Partial<typeof cleanLessonData>).planId;
-            }
-
             if (existingLessonIndex > -1) {
                 // Update existing lesson: merge old data with new data from form
                 const existingLesson = dayLessons[existingLessonIndex];
                 const updatedLesson = {
                     ...existingLesson, // Keep old properties like id
-                    ...cleanLessonData,      // Overwrite with new form data
+                    ...lessonData,      // Overwrite with new form data
                     lessonSlot,
                     time: settings.timeSlots[lessonSlot] || '',
                 };
@@ -134,7 +128,7 @@ export function useWeeklySchedule(userId?: string) {
                     id: `${day}-${lessonSlot}-${new Date().getTime()}`,
                     lessonSlot,
                     time: settings.timeSlots[lessonSlot] || '',
-                    ...cleanLessonData,
+                    ...lessonData,
                 };
                 updatedLessons = [...dayLessons, newLesson];
             }
@@ -146,8 +140,7 @@ export function useWeeklySchedule(userId?: string) {
             }
         }
 
-        // Use setDoc with merge: true to handle both creation and updates atomically.
-        await setDoc(scheduleDocRef, { [day]: updatedLessons }, { merge: true });
+        await updateDoc(scheduleDocRef, { [day]: updatedLessons });
 
     } catch (error) {
          console.error("Error updating lesson:", error);

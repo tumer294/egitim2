@@ -197,3 +197,33 @@ export const checkRemindersAndSendNotifications = functions.region('europe-west1
         return null;
     }
 });
+
+// Callable function to save survey results
+export const saveSurveyResult = functions.region('europe-west1').https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Bu işlemi yapmak için kimliğinizin doğrulanması gerekiyor.');
+    }
+
+    const { studentId, classId, surveyType, results, completedAt } = data;
+    const userId = context.auth.uid;
+
+    if (!studentId || !classId || !surveyType || !results || !completedAt) {
+        throw new functions.https.HttpsError('invalid-argument', 'Eksik anket verisi.');
+    }
+
+    try {
+        const surveyData = {
+            userId,
+            studentId,
+            classId,
+            surveyType,
+            results,
+            completedAt
+        };
+        await adminDb.collection('users').doc(userId).collection('surveys').add(surveyData);
+        return { success: true };
+    } catch (error) {
+        console.error("Error saving survey result in function:", error);
+        throw new functions.https.HttpsError('internal', 'Anket sonucu kaydedilirken bir sunucu hatası oluştu.');
+    }
+});

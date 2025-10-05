@@ -107,16 +107,6 @@ export default function DersProgrami() {
         }
     }
 
-    const findRelatedPlan = (lesson: Omit<Lesson, 'id' | 'lessonSlot' | 'time'> | Lesson | null): Plan | null => {
-        if (!lesson) return null;
-        if (lesson.planId) {
-            const directPlan = plans.find(p => p.id === lesson.planId);
-            if (directPlan) return directPlan;
-        }
-        if (!lesson.grade) return null;
-        return plans.find(p => p.grade === lesson.grade && p.type === 'annual') || null;
-    };
-
   const viewFile = async (plan: Plan, week: number) => {
     setViewingPlanTitle(plan.title);
     
@@ -262,24 +252,34 @@ export default function DersProgrami() {
     return Array.from(lessonsMap.values());
   }, [schedule]);
 
+  const findRelatedPlan = (lesson: Lesson | null): Plan | null => {
+    if (!lesson) return null;
+    if (lesson.planId) {
+        const directPlan = plans.find(p => p.id === lesson.planId);
+        if (directPlan) return directPlan;
+    }
+    if (!lesson.grade) return null;
+    return plans.find(p => p.grade === lesson.grade && p.type === 'annual') || null;
+}
+
   const handleLessonClick = (day: Day, slotIndex: number, lesson: Lesson | null) => {
     if (clickTimeoutRef.current) {
-      clearTimeout(clickTimeoutRef.current);
-      clickTimeoutRef.current = null;
-      // This is a double click, open the edit modal
-      openEditLessonModal(day, slotIndex, lesson);
-    } else {
-      clickTimeoutRef.current = setTimeout(() => {
-        // This is a single click
-        const relatedPlan = findRelatedPlan(lesson);
-        if (relatedPlan) {
-          viewFile(relatedPlan, getAcademicWeek(new Date()));
-        } else {
-            // If there's no plan, a single click on a non-empty slot should do nothing.
-            // A single click on an empty slot should also do nothing, user must double click.
-        }
+        clearTimeout(clickTimeoutRef.current);
         clickTimeoutRef.current = null;
-      }, 250); // 250ms delay to differentiate single/double click
+        // Double-click
+        openEditLessonModal(day, slotIndex, lesson);
+    } else {
+        clickTimeoutRef.current = setTimeout(() => {
+            // Single-click
+            const relatedPlan = findRelatedPlan(lesson);
+            if (relatedPlan) {
+                viewFile(relatedPlan, getAcademicWeek(new Date()));
+            } else {
+                // If no plan, open edit modal on single click
+                openEditLessonModal(day, slotIndex, lesson);
+            }
+            clickTimeoutRef.current = null;
+        }, 250); // 250ms delay to differentiate single/double click
     }
   };
 
@@ -509,3 +509,4 @@ export default function DersProgrami() {
     </div>
   );
 }
+

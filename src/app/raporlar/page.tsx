@@ -1,4 +1,3 @@
-
 'use client';
 import * as React from 'react';
 import {
@@ -12,6 +11,8 @@ import {
   ChevronDown,
   AlertTriangle,
   Sparkles,
+  Trash2,
+  Eye,
 } from 'lucide-react';
 import AppLayout from '@/components/app-layout';
 import { Button } from '@/components/ui/button';
@@ -64,14 +65,14 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
   } from "@/components/ui/collapsible"
-import { Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { Bar, BarChart as RechartsBarChart, Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth, isWithinInterval, eachDayOfInterval, parseISO } from 'date-fns';
+import { format, startOfMonth, isWithinInterval, eachDayOfInterval, parseISO, startOfWeek, endOfWeek, subMonths, endOfMonth, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { statusOptions, AttendanceStatus } from '@/lib/types';
+import { statusOptions, AttendanceStatus, SurveyResult } from '@/lib/types';
 import type { Student, ClassInfo, DailyRecord, RecordEvent } from '@/lib/types';
 import { useClassesAndStudents } from '@/hooks/use-daily-records';
 import { db } from '@/lib/firebase';
@@ -83,6 +84,16 @@ import { useToast } from '@/hooks/use-toast';
 import type { IndividualStudentReportOutput } from '@/ai/flows/individual-student-report-flow';
 import type { ClassReportOutput } from '@/ai/flows/class-report-flow.ts';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useStudentSurveys } from '@/hooks/use-surveys';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 
 
 const statusToTurkish: Record<string, string> = {
@@ -109,6 +120,18 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+const surveyTypeNames: Record<string, string> = {
+    'coklu-zeka': 'Çoklu Zeka Envanteri',
+    'holland': 'Holland Mesleki Tercih Envanteri',
+    'ogrenme-stilleri': 'Öğrenme Stilleri Anketi',
+};
+
+const surveyResultColors = [
+    'hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))',
+    'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--primary))',
+    'hsl(35, 92%, 55%)', 'hsl(262, 70%, 57%)'
+];
+
 
 function RaporlarPageContent() {
   const { user } = useAuth();
@@ -129,8 +152,11 @@ function RaporlarPageContent() {
   const [isAiReportLoading, setIsAiReportLoading] = React.useState(false);
   const [aiReport, setAiReport] = React.useState<IndividualStudentReportOutput | ClassReportOutput | null>(null);
   const [isAiReportOpen, setIsAiReportOpen] = React.useState(false);
+  const [viewingSurvey, setViewingSurvey] = React.useState<SurveyResult | null>(null);
+
   const isMobile = useMediaQuery("(max-width: 768px)");
 
+  const { surveys: studentSurveys, isLoading: areSurveysLoading, deleteSurvey } = useStudentSurveys(selectedStudentId);
 
   const normalizeTurkishChars = (str: string) => {
     if (!str) return '';
@@ -488,117 +514,124 @@ function RaporlarPageContent() {
       const selectedStudent = students.find(s => s.id === selectedStudentId);
 
       return (
-        <Card>
-            <CardHeader className='flex-col md:flex-row items-start md:items-center justify-between gap-4'>
-                <div>
-                    <CardTitle>Bireysel Rapor: {selectedStudent?.firstName} {selectedStudent?.lastName}</CardTitle>
-                    <CardDescription>Aşağıda öğrencinin seçilen tarih aralığındaki performansını görebilirsiniz.</CardDescription>
-                </div>
-                 <div className='flex gap-2'>
-                    <Button variant="outline" onClick={handleDownloadPdf}>
-                        <Download className="mr-2 h-4 w-4" />
-                        PDF İndir
-                    </Button>
-                    <Button onClick={handleGenerateAiReport}>
-                        <Sparkles className='mr-2 h-4 w-4' />
-                        AI Destekli Rapor
-                    </Button>
-                 </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 text-center">
-                    {Object.entries(summary).map(([key, value]) => (
-                        <div key={key} className="border rounded-md p-4">
-                            <div className="flex justify-center items-center mb-2">
-                                {value.icon && <value.icon className={cn("h-6 w-6", statusOptions.find(o => o.value === key)?.color)} />}
+        <div className='space-y-6'>
+            <Card>
+                <CardHeader className='flex-col md:flex-row items-start md:items-center justify-between gap-4'>
+                    <div>
+                        <CardTitle>Bireysel Rapor: {selectedStudent?.firstName} {selectedStudent?.lastName}</CardTitle>
+                        <CardDescription>Aşağıda öğrencinin seçilen tarih aralığındaki performansını görebilirsiniz.</CardDescription>
+                    </div>
+                    <div className='flex gap-2'>
+                        <Button variant="outline" onClick={handleDownloadPdf}>
+                            <Download className="mr-2 h-4 w-4" />
+                            PDF İndir
+                        </Button>
+                        <Button onClick={handleGenerateAiReport}>
+                            <Sparkles className='mr-2 h-4 w-4' />
+                            AI Destekli Rapor
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 text-center">
+                        {Object.entries(summary).map(([key, value]) => (
+                            <div key={key} className="border rounded-md p-4">
+                                <div className="flex justify-center items-center mb-2">
+                                    {value.icon && <value.icon className={cn("h-6 w-6", statusOptions.find(o => o.value === key)?.color)} />}
+                                </div>
+                                <p className="text-2xl font-bold">{value.count}</p>
+                                <p className="text-sm text-muted-foreground">{value.label}</p>
                             </div>
-                            <p className="text-2xl font-bold">{value.count}</p>
-                            <p className="text-sm text-muted-foreground">{value.label}</p>
-                        </div>
-                    ))}
-                </div>
-                
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Performans Grafiği</CardTitle>
-                         <CardDescription>Öğrencinin seçilen tarih aralığındaki kümülatif performans puanı trendi.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-                            <ResponsiveContainer width="100%" height={300}>
-                                <LineChart data={chartData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
-                                    <YAxis domain={['auto', 'auto']} allowDecimals={false} />
-                                    <RechartsTooltip 
-                                        contentStyle={{
-                                            backgroundColor: 'hsl(var(--background))',
-                                            borderColor: 'hsl(var(--border))'
-                                        }}
-                                        labelStyle={{ color: 'hsl(var(--foreground))' }}
-                                    />
-                                    <ChartLegend content={<ChartLegendContent />} />
-                                    <Line type="monotone" dataKey="puan" stroke="var(--color-puan)" strokeWidth={2} dot={false} />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
+                        ))}
+                    </div>
+                    
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Performans Grafiği</CardTitle>
+                            <CardDescription>Öğrencinin seçilen tarih aralığındaki kümülatif performans puanı trendi.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={chartData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
+                                        <YAxis domain={['auto', 'auto']} allowDecimals={false} />
+                                        <RechartsTooltip 
+                                            contentStyle={{
+                                                backgroundColor: 'hsl(var(--background))',
+                                                borderColor: 'hsl(var(--border))'
+                                            }}
+                                            labelStyle={{ color: 'hsl(var(--foreground))' }}
+                                        />
+                                        <ChartLegend content={<ChartLegendContent />} />
+                                        <Line type="monotone" dataKey="puan" stroke="var(--color-puan)" strokeWidth={2} dot={false} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                </CardContent>
+            </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Olay Geçmişi</CardTitle>
-                        <CardDescription>Seçilen tarih aralığındaki tüm değerlendirmeler ve notlar.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className='w-1/4'>Tarih</TableHead>
-                                    <TableHead className='w-1/4'>Değerlendirme</TableHead>
-                                    <TableHead>Öğretmen Görüşü</TableHead>
+            <SurveyResults
+                surveys={studentSurveys}
+                isLoading={areSurveysLoading}
+                onView={setViewingSurvey}
+            />
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Olay Geçmişi</CardTitle>
+                    <CardDescription>Seçilen tarih aralığındaki tüm değerlendirmeler ve notlar.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className='w-1/4'>Tarih</TableHead>
+                                <TableHead className='w-1/4'>Değerlendirme</TableHead>
+                                <TableHead>Öğretmen Görüşü</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {Object.keys(eventsByDate).length > 0 ? (
+                                Object.entries(eventsByDate)
+                                .sort((a,b) => parseISO(b[0]).getTime() - parseISO(a[0]).getTime())
+                                .map(([date, data]) => (
+                                <TableRow key={date}>
+                                    <TableCell className="font-medium align-top">
+                                        {format(parseISO(date), 'd MMMM yyyy, EEEE', { locale: tr })}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-2">
+                                            {data.statuses.map(statusEvent => {
+                                                const option = statusOptions.find(o => o.value === statusEvent.value);
+                                                if (!option) return null;
+                                                return (
+                                                    <span key={statusEvent.id} className="inline-flex items-center gap-1.5 p-1 rounded-md" style={{ backgroundColor: option.bgColor }}>
+                                                        {React.createElement(option.icon!, { className: cn("h-4 w-4", option.color)})}
+                                                    </span>
+                                                )
+                                            })}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {data.note}
+                                    </TableCell>
                                 </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {Object.keys(eventsByDate).length > 0 ? (
-                                    Object.entries(eventsByDate)
-                                    .sort((a,b) => parseISO(b[0]).getTime() - parseISO(a[0]).getTime())
-                                    .map(([date, data]) => (
-                                    <TableRow key={date}>
-                                        <TableCell className="font-medium align-top">
-                                            {format(parseISO(date), 'd MMMM yyyy, EEEE', { locale: tr })}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-wrap gap-2">
-                                                {data.statuses.map(statusEvent => {
-                                                    const option = statusOptions.find(o => o.value === statusEvent.value);
-                                                    if (!option) return null;
-                                                    return (
-                                                        <span key={statusEvent.id} className="inline-flex items-center gap-1.5 p-1 rounded-md" style={{ backgroundColor: option.bgColor }}>
-                                                            {React.createElement(option.icon!, { className: cn("h-4 w-4", option.color)})}
-                                                        </span>
-                                                    )
-                                                })}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-sm text-muted-foreground">
-                                            {data.note}
-                                        </TableCell>
-                                    </TableRow>
-                                ))) : (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="text-center text-muted-foreground h-24">
-                                            Bu tarih aralığında kayıt bulunmuyor.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-            </CardContent>
-        </Card>
+                            ))) : (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-center text-muted-foreground h-24">
+                                        Bu tarih aralığında kayıt bulunmuyor.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
       )
     }
 
@@ -640,7 +673,7 @@ function RaporlarPageContent() {
                             <TableBody>
                             {classReportData.studentSummaries.map(student => (
                                 <Collapsible key={student.id} asChild>
-                                    <React.Fragment>
+                                    <>
                                         <TableRow>
                                             <TableCell className="font-medium">{student.studentNumber}</TableCell>
                                             <TableCell>{student.firstName} {student.lastName}</TableCell>
@@ -675,7 +708,7 @@ function RaporlarPageContent() {
                                                 </TableCell>
                                             </tr>
                                         </CollapsibleContent>
-                                    </React.Fragment>
+                                    </>
                                 </Collapsible>
                             ))}
                             </TableBody>
@@ -687,6 +720,194 @@ function RaporlarPageContent() {
     }
 
     return null;
+  }
+  
+  const SurveyResults = ({ surveys, isLoading, onView } : { surveys: SurveyResult[], isLoading: boolean, onView: (survey: SurveyResult) => void }) => {
+    if (isLoading) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Anket Sonuçları</CardTitle>
+                </CardHeader>
+                <CardContent className='flex justify-center items-center p-10'>
+                     <Loader2 className="h-8 w-8 animate-spin" />
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    if (surveys.length === 0) {
+        return null;
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Anket Sonuçları</CardTitle>
+                <CardDescription>Öğrencinin tamamladığı anketlerin sonuçlarını görüntüleyin.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+                {surveys.map(survey => (
+                    <Card key={survey.id} className="flex flex-col">
+                        <CardHeader>
+                            <CardTitle className="text-base">{surveyTypeNames[survey.surveyType] || 'Bilinmeyen Anket'}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                             <p className="text-sm text-muted-foreground">
+                                Tamamlanma Tarihi: {format(parseISO(survey.completedAt), 'dd MMMM yyyy', { locale: tr })}
+                            </p>
+                        </CardContent>
+                        <CardFooter>
+                            <Button variant="outline" className="w-full" onClick={() => onView(survey)}>
+                                <Eye className="mr-2 h-4 w-4"/>
+                                Sonucu Görüntüle
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                ))}
+            </CardContent>
+        </Card>
+    );
+  };
+  
+   const SurveyResultViewer = ({ survey, onClose, onDelete }: { survey: SurveyResult | null, onClose: () => void, onDelete: (surveyId: string) => void }) => {
+    const isMobile = useMediaQuery("(max-width: 768px)");
+    if (!survey) return null;
+
+    const renderContent = () => {
+        switch (survey.surveyType) {
+            case 'coklu-zeka':
+                const topThree = survey.results.slice(0, 3);
+                return (
+                  <div className='space-y-4'>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <RechartsBarChart data={survey.results} layout="vertical" margin={{ left: 50 }}>
+                             <CartesianGrid strokeDasharray="3 3" />
+                             <XAxis type="number" />
+                             <YAxis dataKey="name" type="category" width={100} interval={0} tick={{ fontSize: 10 }} />
+                             <RechartsTooltip />
+                             <Bar dataKey="score">
+                                 {survey.results.map((entry: any, index: number) => (
+                                     <Cell key={`cell-${index}`} fill={surveyResultColors[index % surveyResultColors.length]} />
+                                 ))}
+                             </Bar>
+                        </RechartsBarChart>
+                    </ResponsiveContainer>
+                    <div className='grid md:grid-cols-3 gap-2'>
+                        {topThree.map((result: any, index: number) => (
+                             <Card key={result.id} className="text-xs">
+                                <CardHeader className='p-3'>
+                                    <CardTitle className="text-sm">{index + 1}. {result.name}</CardTitle>
+                                </CardHeader>
+                                <CardContent className='p-3 pt-0'>
+                                     <p className='text-muted-foreground'>{result.description}</p>
+                                     <div className='mt-2'>
+                                        <h4 className='font-semibold mb-1'>Uygun Meslekler:</h4>
+                                        <div className='flex flex-wrap gap-1'>
+                                            {result.professions.map((p: string) => <Badge key={p} variant="secondary" className='text-[10px]'>{p}</Badge>)}
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                  </div>
+                );
+            case 'holland':
+                const topThreeHolland = survey.results.slice(0, 3);
+                const hollandCode = topThreeHolland.map((r: any) => r.name.charAt(0)).join('');
+                 return (
+                  <div className='space-y-4'>
+                    <p className='font-bold text-center'>Holland Kodu: {hollandCode}</p>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <RechartsBarChart data={survey.results} margin={{ left: 10 }}>
+                             <CartesianGrid strokeDasharray="3 3" />
+                             <XAxis dataKey="name" tick={{ fontSize: 12 }}/>
+                             <YAxis />
+                             <RechartsTooltip />
+                             <Bar dataKey="score" barSize={30}>
+                                 {survey.results.map((entry: any, index: number) => (
+                                     <Cell key={`cell-${index}`} fill={surveyResultColors[index % surveyResultColors.length]} />
+                                 ))}
+                             </Bar>
+                        </RechartsBarChart>
+                    </ResponsiveContainer>
+                     <div className='grid md:grid-cols-3 gap-2'>
+                        {topThreeHolland.map((result: any, index: number) => (
+                             <Card key={result.id} className="text-xs">
+                                <CardHeader className='p-3'>
+                                    <CardTitle className="text-sm">{index + 1}. {result.fullName}</CardTitle>
+                                </CardHeader>
+                                <CardContent className='p-3 pt-0'>
+                                     <p className='text-muted-foreground'>{result.description}</p>
+                                     <div className='mt-2'>
+                                        <h4 className='font-semibold mb-1'>Uygun Meslekler:</h4>
+                                        <div className='flex flex-wrap gap-1'>
+                                            {result.professions.map((p: string) => <Badge key={p} variant="secondary" className='text-[10px]'>{p}</Badge>)}
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                  </div>
+                );
+            case 'ogrenme-stilleri':
+                 const styleInfo = survey.results; // Assuming results is an object like { dominantStyle: 'visual', scores: {...} }
+                 return (
+                    <div className="text-center">
+                        <h3 className='text-lg font-semibold'>Baskın Öğrenme Stili</h3>
+                        <p className='text-2xl font-bold text-primary mt-2'>{styleInfo.dominantStyle === 'visual' ? 'Görsel' : styleInfo.dominantStyle === 'auditory' ? 'İşitsel' : 'Kinestetik'}</p>
+                    </div>
+                );
+            default:
+                return <p>Bu anket türü için sonuç gösterimi desteklenmiyor.</p>;
+        }
+    };
+    
+    const Wrapper = isMobile ? Sheet : Dialog;
+    const Content = isMobile ? SheetContent : DialogContent;
+    
+    return (
+        <Wrapper open={!!survey} onOpenChange={(open) => !open && onClose()}>
+            <Content className={cn(isMobile ? "h-[85vh] flex flex-col" : "max-w-3xl min-h-[50vh]")} {...(isMobile && {side: 'bottom'})}>
+                <SheetHeader>
+                    <SheetTitle>{surveyTypeNames[survey.surveyType]}</SheetTitle>
+                    <SheetDescription>
+                        {format(parseISO(survey.completedAt), 'dd MMMM yyyy', { locale: tr })} tarihinde tamamlandı.
+                    </SheetDescription>
+                </SheetHeader>
+                <div className="py-4 flex-1 overflow-y-auto pr-4">
+                    {renderContent()}
+                </div>
+                 <SheetFooter className="flex-col sm:flex-row sm:justify-between items-center">
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Sonucu Sil
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Bu anket sonucu kalıcı olarak silinecektir. Bu işlem geri alınamaz.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>İptal</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => { onDelete(survey.id); onClose(); }} className="bg-destructive hover:bg-destructive/90">
+                                    Evet, Sil
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <Button onClick={onClose}>Kapat</Button>
+                 </SheetFooter>
+            </Content>
+        </Wrapper>
+    );
   }
 
   const AiReportContent = () => {
@@ -708,55 +929,59 @@ function RaporlarPageContent() {
 
     if ('generalEvaluation' in aiReport) { // Individual Report
       return (
-        <div className="space-y-4">
-            <div>
-                <h3 className="font-bold">Genel Değerlendirme</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.generalEvaluation}</p>
+        <ScrollArea className="h-full">
+            <div className="space-y-4 pr-6">
+                <div>
+                    <h3 className="font-bold">Genel Değerlendirme</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.generalEvaluation}</p>
+                </div>
+                <div>
+                    <h3 className="font-bold">Güçlü Yönler</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.strengths}</p>
+                </div>
+                <div>
+                    <h3 className="font-bold">Geliştirilmesi Gereken Yönler</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.areasForImprovement}</p>
+                </div>
+                <div>
+                    <h3 className="font-bold">Öneriler</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.recommendations}</p>
+                </div>
             </div>
-            <div>
-                <h3 className="font-bold">Güçlü Yönler</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.strengths}</p>
-            </div>
-            <div>
-                <h3 className="font-bold">Geliştirilmesi Gereken Yönler</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.areasForImprovement}</p>
-            </div>
-            <div>
-                <h3 className="font-bold">Öneriler</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.recommendations}</p>
-            </div>
-        </div>
+        </ScrollArea>
       );
     }
 
     if ('classOverview' in aiReport) { // Class Report
       return (
-        <div className="space-y-4">
-            <div>
-                <h3 className="font-bold">Genel Değerlendirme</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.classOverview}</p>
+        <ScrollArea className="h-full">
+            <div className="space-y-4 pr-6">
+                <div>
+                    <h3 className="font-bold">Genel Değerlendirme</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.classOverview}</p>
+                </div>
+                <div>
+                    <h3 className="font-bold">Ortak Güçlü Yönler</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.commonStrengths}</p>
+                </div>
+                <div>
+                    <h3 className="font-bold">Geliştirilmesi Gereken Alanlar</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.commonChallenges}</p>
+                </div>
+                <div>
+                    <h3 className="font-bold">Öne Çıkan Öğrenciler</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.outstandingStudents}</p>
+                </div>
+                <div>
+                    <h3 className="font-bold">Desteğe İhtiyaç Duyan Öğrenciler</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.studentsNeedingSupport}</p>
+                </div>
+                <div>
+                    <h3 className="font-bold">Genel Öneriler</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.generalRecommendations}</p>
+                </div>
             </div>
-            <div>
-                <h3 className="font-bold">Ortak Güçlü Yönler</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.commonStrengths}</p>
-            </div>
-            <div>
-                <h3 className="font-bold">Geliştirilmesi Gereken Alanlar</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.commonChallenges}</p>
-            </div>
-            <div>
-                <h3 className="font-bold">Öne Çıkan Öğrenciler</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.outstandingStudents}</p>
-            </div>
-            <div>
-                <h3 className="font-bold">Desteğe İhtiyaç Duyan Öğrenciler</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.studentsNeedingSupport}</p>
-            </div>
-            <div>
-                <h3 className="font-bold">Genel Öneriler</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiReport.generalRecommendations}</p>
-            </div>
-        </div>
+        </ScrollArea>
       );
     }
     
@@ -787,7 +1012,7 @@ function RaporlarPageContent() {
                         Bu rapor, sağlanan verilere dayanarak yapay zeka tarafından oluşturulmuştur ve bir uzman görüşü niteliği taşımaz.
                     </ReportDescription>
                 </ReportHeader>
-                <div className='flex-1 min-h-0 overflow-y-auto pr-2 py-4'>
+                <div className='flex-1 min-h-0 py-4'>
                     <AiReportContent />
                 </div>
                 <ReportFooter>
@@ -881,15 +1106,30 @@ function RaporlarPageContent() {
                     </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange?.from}
-                        selected={dateRange}
-                        onSelect={setDateRange}
-                        numberOfMonths={2}
-                        locale={tr}
-                    />
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={setDateRange}
+                            numberOfMonths={isMobile ? 1 : 2}
+                            locale={tr}
+                        />
+                        <div className="p-2 border-t flex justify-center">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost">Hızlı Seç</Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="center">
+                                    <DropdownMenuItem onClick={() => setDateRange({ from: new Date(), to: new Date() })}>Bugün</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => { const today = new Date(); const yesterday = subDays(today, 1); setDateRange({ from: yesterday, to: yesterday }); }}>Dün</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setDateRange({ from: subDays(new Date(), 6), to: new Date() })}>Son 7 Gün</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setDateRange({ from: subDays(new Date(), 29), to: new Date() })}>Son 30 Gün</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) })}>Bu Ay</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => { const prevMonth = subMonths(new Date(), 1); setDateRange({ from: startOfMonth(prevMonth), to: endOfMonth(prevMonth) }); }}>Geçen Ay</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </PopoverContent>
                 </Popover>
               </div>
@@ -908,6 +1148,7 @@ function RaporlarPageContent() {
         </div>
         
         <AiReportModal />
+        <SurveyResultViewer survey={viewingSurvey} onClose={() => setViewingSurvey(null)} onDelete={deleteSurvey} />
       </main>
     </AppLayout>
   );

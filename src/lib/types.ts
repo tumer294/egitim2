@@ -65,6 +65,7 @@ export type NoteChecklistItem = {
 
 export type Note = {
   id: string;
+  userId: string;
   title: string;
   content: string;
   type: 'text' | 'checklist';
@@ -185,3 +186,13 @@ export type Reminder = {
 };
 
 export type Urgency = 'pastDue' | 'veryUrgent' | 'urgent' | 'info' | 'none';
+
+export type SurveyResult = {
+  id: string;
+  userId: string;
+  studentId: string;
+  classId: string;
+  surveyType: 'coklu-zeka' | 'holland' | 'ogrenme-stilleri';
+  results: any; // Can be more specific if needed
+  completedAt: string; // ISO String
+};

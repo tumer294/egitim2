@@ -18,6 +18,7 @@ import {
     MessageSquare,
     Bot,
     Bell,
+    Vote,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
@@ -53,6 +54,7 @@ const baseMenuItems = [
     { href: '/hatirlaticilar', label: 'Hatırlatıcılar', icon: Bell },
     { href: '/notlarim', label: 'Notlarım', icon: StickyNote },
     { href: '/forum', label: 'Forum', icon: MessageSquare },
+    { href: '/anket', label: 'Anket', icon: Vote },
     { href: '/yapay-zeka', label: 'Yapay Zeka', icon: Bot },
 ];
 
