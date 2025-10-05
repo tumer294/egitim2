@@ -5,7 +5,7 @@ import * as React from 'react';
 import { useToast } from './use-toast';
 import type { Note } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy, where, updateDoc } from 'firebase/firestore';
 import { speechToNoteAction } from '@/app/actions';
 
 export function useNotes(userId?: string) {
@@ -15,39 +15,39 @@ export function useNotes(userId?: string) {
   const [isRecording, setIsRecording] = React.useState(false);
   const [isTranscribing, setIsTranscribing] = React.useState(false);
   const recognitionRef = React.useRef<any>(null);
-
+  
   React.useEffect(() => {
     if (!userId) {
-      setIsLoading(false);
-      setNotes([]);
-      return;
+        setNotes([]);
+        setIsLoading(false);
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
+        return;
     }
 
     setIsLoading(true);
-    // A single, simple query that doesn't require a composite index.
-    // We will sort in the client.
-    const notesCollectionRef = collection(db, `users/${userId}/notes`);
-    const q = query(notesCollectionRef, orderBy('date', 'desc'));
+    const notesCollectionRef = collection(db, 'users', userId, 'notes');
+    const q = query(
+      notesCollectionRef,
+      orderBy('date', 'desc')
+    );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeNotes = onSnapshot(q, (snapshot) => {
       const notesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Note));
       
-      // Sort client-side: pinned notes first, then by date (which they already are)
+      // Sort on the client-side: pinned notes first, then by date
       notesData.sort((a, b) => {
-        const aPinned = !!a.isPinned;
-        const bPinned = !!b.isPinned;
-        if (aPinned === bPinned) {
-          return 0; // Keep original date order
-        }
-        return aPinned ? -1 : 1; // Pinned notes come first
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        // If both have same pinned status, sort by date (already sorted by query, but good for safety)
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
       });
 
       setNotes(notesData);
       setIsLoading(false);
     }, (error) => {
       console.error("Error fetching notes:", error);
-      // This is a simplified query, so index errors are highly unlikely.
-      // If it fails, it's likely a permissions or network issue.
       toast({
         title: "Hata",
         description: "Notlar yüklenirken bir hata oluştu.",
@@ -57,10 +57,10 @@ export function useNotes(userId?: string) {
     });
 
     return () => {
-      unsubscribe();
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
+        unsubscribeNotes();
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
     };
   }, [userId, toast]);
   
@@ -131,7 +131,8 @@ export function useNotes(userId?: string) {
 
     const dataToSave: { [key: string]: any } = { 
         ...noteData,
-        isPinned: noteData.isPinned || false, // Ensure isPinned is never undefined
+        userId: userId,
+        isPinned: noteData.isPinned || false,
         textColor: noteData.textColor || '#000000',
     };
 
@@ -144,7 +145,7 @@ export function useNotes(userId?: string) {
     }
     
     try {
-        const notesCollectionRef = collection(db, `users/${userId}/notes`);
+        const notesCollectionRef = collection(db, 'users', userId, 'notes');
         await addDoc(notesCollectionRef, dataToSave);
     } catch (error) {
         console.error("Error adding note to Firestore:", error);
@@ -162,7 +163,7 @@ export function useNotes(userId?: string) {
         return;
     }
     try {
-        const noteDocRef = doc(db, `users/${userId}/notes`, noteId);
+        const noteDocRef = doc(db, 'users', userId, 'notes', noteId);
         
         const dataToUpdate: { [key: string]: any } = {...data};
         if (dataToUpdate.isPinned === undefined) {
@@ -191,7 +192,7 @@ export function useNotes(userId?: string) {
         return;
     }
     try {
-        const noteDocRef = doc(db, `users/${userId}/notes`, noteId);
+        const noteDocRef = doc(db, 'users', userId, 'notes', noteId);
         await deleteDoc(noteDocRef);
         toast({
             title: 'Not Silindi',

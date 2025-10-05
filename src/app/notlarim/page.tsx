@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -33,13 +34,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Note, NoteChecklistItem } from '@/lib/types';
 import { format } from 'date-fns';
-import { useAuth } from '@/hooks/use-auth';
 import AuthGuard from '@/components/auth-guard';
 import { useNotes } from '@/hooks/use-notes';
 import { EditNoteDialog } from '@/components/edit-note-dialog';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/use-auth';
 
 
 const noteColors = [
@@ -171,6 +172,15 @@ function NotlarimPageContent() {
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+        toast({
+            title: 'Giriş Gerekli',
+            description: 'Not eklemek için lütfen giriş yapın.',
+            variant: 'destructive',
+        });
+        return;
+    }
+
     if (isRecording) {
       await handleToggleRecording(() => {});
     }
@@ -186,6 +196,7 @@ function NotlarimPageContent() {
     }
     
     const newNoteData: Omit<Note, 'id'> = {
+      userId: user.uid,
       title: newNoteTitle,
       content: newNoteType === 'text' ? newNoteContent : '',
       type: newNoteType,
