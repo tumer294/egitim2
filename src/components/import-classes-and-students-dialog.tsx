@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -23,8 +22,20 @@ import {
 } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
 import { parseStudentListAction } from '@/app/actions';
-import type { StudentListParserOutput } from '@/ai/flows/student-list-parser';
+import type { ClassInfo, Student } from '@/lib/types';
 import { useMediaQuery } from '@/hooks/use-media-query';
+
+// This output type should ideally be imported, but defining it here to avoid complex circular dependencies for this specific component
+type StudentListParserOutput = {
+    classes: {
+        className: string;
+        students: {
+            studentNumber: number;
+            firstName: string;
+            lastName: string;
+        }[];
+    }[];
+}
 
 type ClassImportData = StudentListParserOutput['classes'][0];
 
@@ -85,7 +96,8 @@ export function ImportClassesAndStudentsDialog({ onImport }: ImportClassesAndStu
         const reader = new FileReader();
         reader.onload = async (e) => {
             const dataUri = e.target?.result as string;
-            const result = await parseStudentListAction({ fileDataUri: dataUri });
+            // The action now returns a more complex object, so we need to ensure the type matches
+            const result = await parseStudentListAction({ fileDataUri: dataUri }) as any; // Cast to any to access .classes
 
             if (result.error || !result.classes || result.classes.length === 0) {
                  toast({
@@ -98,7 +110,7 @@ export function ImportClassesAndStudentsDialog({ onImport }: ImportClassesAndStu
             }
             
             // Normalize class names (e.g., "5. Sınıf / D Şubesi Sınıf Listesi" -> "5/D")
-            const normalizedClasses = result.classes.map(c => {
+            const normalizedClasses = result.classes.map((c: any) => {
                 const name = c.className.replace('Sınıf', '').replace('Şubesi', '').replace('Sınıf Listesi', '').replace(/\s+/g, '').replace('/', '/');
                 return { ...c, className: name };
             });
@@ -148,7 +160,7 @@ export function ImportClassesAndStudentsDialog({ onImport }: ImportClassesAndStu
             <p className="text-sm text-muted-foreground">
               {selectedFile ? selectedFile.name : "Dosya yüklemek için tıklayın veya sürükleyin"}
             </p>
-            <p className="text-xs text-muted-foreground">PDF veya Excel (Max 5MB)</p>
+            <p className="text-xs text-muted-foreground">PDF veya Excel (En iyi sonuç için PDF)</p>
             <input 
               ref={fileInputRef}
               type="file"
@@ -235,7 +247,7 @@ export function ImportClassesAndStudentsDialog({ onImport }: ImportClassesAndStu
         <DialogHeader>
           <DialogTitle>Sınıfları ve Öğrencileri Toplu Aktar</DialogTitle>
           <DialogDescription>
-            E-Okul'dan indirdiğiniz PDF veya Excel formatındaki öğrenci listesi dosyasını yükleyin.
+            E-Okul'dan indirdiğiniz öğrenci listesi dosyasını yükleyin. En iyi sonuçlar için PDF formatını tercih edin.
           </DialogDescription>
         </DialogHeader>
 

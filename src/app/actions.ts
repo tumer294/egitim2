@@ -5,7 +5,7 @@ import type { DescriptionAutoFillInput } from '@/ai/flows/description-auto-fill'
 import { parseStudentList } from '@/ai/flows/student-list-parser';
 import type { StudentListParserOutput } from '@/ai/flows/student-list-parser';
 import { speechToNote } from '@/ai/flows/speech-to-note';
-import type { SpeechToNoteInput } from '@/ai/flows/speech-to-note';
+import type { SpeechToNoteInput, SpeechToNoteOutput } from '@/ai/flows/speech-to-note';
 import { assistantFlow } from '@/ai/flows/assistant-flow';
 import type { AssistantInput } from '@/ai/flows/assistant-flow';
 import { generateIndividualReport } from '@/ai/flows/individual-student-report-flow';
@@ -41,32 +41,32 @@ type StudentListParserInput = {
     fileDataUri: string;
 };
 
-export async function parseStudentListAction(input: StudentListParserInput): Promise<{ classes: StudentListParserOutput['classes'] } | { error: string }> {
+export async function parseStudentListAction(input: StudentListParserInput): Promise<{ analysis: string } | { error: string }> {
     try {
       const result = await parseStudentList(input);
-      if (result?.classes) {
-        return { classes: result.classes };
+      if (result?.analysis) {
+        return { analysis: result.analysis };
       }
-      return { error: 'Dosya ayrıştırılamadı.' };
-    } catch (error) {
+      return { error: 'Dosya analizi yapılamadı.' };
+    } catch (error: any) {
       console.error('Student list parsing failed:', error);
-      return { error: 'Dosya ayrıştırılırken bir hata oluştu.' };
+      return { error: `Dosya ayrıştırılırken bir hata oluştu: ${error.message}` };
     }
 }
 
-export async function speechToNoteAction(input: SpeechToNoteInput): Promise<{ note: string } | { error: string }> {
+export async function speechToNoteAction(input: SpeechToNoteInput): Promise<SpeechToNoteOutput | { error: string }> {
   try {
     const result = await speechToNote(input);
     // If the AI provides a refined note, use it.
-    if (result?.note) {
-      return { note: result.note };
+    if (result?.note || (result.items && result.items.length > 0)) {
+      return result;
     }
     // Otherwise, fallback gracefully to the original transcript without showing an error.
-    return { note: input.transcript };
+    return { type: 'text', note: input.transcript, items: [] };
   } catch (error) {
     console.error('Speech-to-note processing failed:', error);
     // If an actual error occurs, return the original transcript as a fallback.
-    return { note: input.transcript, error: 'Sesli not işlenirken bir hata oluştu.' };
+    return { type: 'text', note: input.transcript, items: [], error: 'Sesli not işlenirken bir hata oluştu.' };
   }
 }
 

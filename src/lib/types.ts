@@ -13,6 +13,7 @@ export type UserProfile = {
   avatarUrl: string;
   hometown: string;
   role: UserRole;
+  theme?: string;
   fcmTokens?: string[];
   readNotificationIds?: string[];
 };
@@ -195,4 +196,13 @@ export type SurveyResult = {
   surveyType: 'coklu-zeka' | 'holland' | 'ogrenme-stilleri';
   results: any; // Can be more specific if needed
   completedAt: string; // ISO String
+};
+
+export type SpeechToNoteInput = {
+  transcript: string;
+};
+export type SpeechToNoteOutput = {
+    type: 'text' | 'checklist';
+    note: string;
+    items: string[];
 };

@@ -1,67 +1,35 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Other rules can go here
 
-    // Allow users to read and write their own profile data
-    match /users/{userId} {
-      allow read, update: if request.auth.uid == userId;
-      // Allow creation of a user profile doc only if it doesn't exist.
-      // This is usually done on signup. The user ID must match.
-      allow create: if request.auth.uid == userId;
-
-      // Allow users to manage their own classes, students, records, notes, plans, reminders
-      match /classes/{classId} {
-        allow read, write, delete: if request.auth.uid == userId;
-        match /students/{studentId} {
-          allow read, write, delete: if request.auth.uid == userId;
-        }
-        match /records/{recordId} {
-          allow read, write, delete: if request.auth.uid == userId;
-        }
-      }
-      
-      match /schedules/{scheduleId} {
-        allow read, write: if request.auth.uid == userId;
-      }
-      
-      match /notes/{noteId} {
-        allow read, write, delete: if request.auth.uid == userId;
-      }
-
-      match /plans/{planId} {
-        allow read, write, delete: if request.auth.uid == userId;
-      }
-
-      match /reminders/{reminderId} {
-          allow read, write, delete: if request.auth.uid == userId;
-      }
-      
-      match /assistantMessages/{messageId} {
-        allow read, write, delete: if request.auth.uid == userId;
-      }
+    // This rule allows a user to manage documents under their own user ID.
+    // It's the foundation for user-specific data.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Explicitly allow users to create documents in their own 'surveys' subcollection.
+    // This is more specific and reliable than relying on the wildcard above for creation.
+    match /users/{userId}/surveys/{surveyId} {
+        allow create: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Forum rules
+    // This rule allows any authenticated user to read from the 'forum' collection.
     match /forum/{postId} {
-      // Any authenticated user can read posts
       allow read: if request.auth != null;
-      // Only authenticated users can create posts
-      allow create: if request.auth != null;
-      // Only the author of the post or an admin can update/delete it
-      allow update, delete: if request.auth != null && (resource.data.author.uid == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create, update, delete: if request.auth != null && (request.auth.token.admin == true || request.resource.data.author.uid == request.auth.uid);
+    }
+    
+    // This rule allows users to manage replies and comments if they are authenticated.
+    match /forum/{postId}/replies/{replyId}/{document=**} {
+       allow read, write: if request.auth != null;
+    }
 
-      match /replies/{replyId} {
+    // Notifications can be read by any authenticated user, but only created/deleted by an admin.
+    match /notifications/{notificationId} {
         allow read: if request.auth != null;
-        allow create: if request.auth != null;
-        allow update, delete: if request.auth != null && (resource.data.author.uid == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-
-        match /comments/{commentId} {
-           allow read: if request.auth != null;
-           allow create: if request.auth != null;
-           allow update, delete: if request.auth != null && (resource.data.author.uid == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-        }
-      }
+        allow create, delete: if request.auth.token.admin == true;
     }
   }
 }

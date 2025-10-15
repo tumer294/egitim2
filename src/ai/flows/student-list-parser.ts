@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview An AI agent that parses a student list file (PDF, Excel) and extracts class and student information.
+ * @fileOverview An AI agent that parses a student list file (PDF, Excel) and extracts class and student information, providing a detailed summary.
  * - parseStudentList - A function that handles the student list parsing process.
  * - StudentListParserOutput - The return type for the parseStudentList function.
  */
@@ -14,20 +14,9 @@ type StudentListParserInput = {
     fileDataUri: string;
 };
 
-const StudentSchema = z.object({
-    studentNumber: z.number().describe("Öğrencinin okul numarası"),
-    firstName: z.string().describe("Öğrencinin adı"),
-    lastName: z.string().describe("Öğrencinin soyadı"),
-});
-
-const ClassSchema = z.object({
-    className: z.string().describe("Sınıfın adı (örn: 5/D)"),
-    students: z.array(StudentSchema).describe("Sınıftaki öğrencilerin listesi"),
-});
-
 export type StudentListParserOutput = z.infer<typeof StudentListParserOutputSchema>;
 const StudentListParserOutputSchema = z.object({
-  classes: z.array(ClassSchema).describe("Dosyadan ayrıştırılan sınıfların listesi"),
+  analysis: z.string().describe("The AI's detailed analysis of the file content in Turkish."),
 });
 
 
@@ -44,25 +33,28 @@ export async function parseStudentList(input: StudentListParserInput): Promise<S
       name: 'studentListParserPrompt',
       input: { schema: StudentListParserInputSchema },
       output: { schema: StudentListParserOutputSchema },
-      prompt: `You are an expert document parser specializing in Turkish school (e-Okul) student lists. Your task is to analyze the provided file (PDF or Excel) and extract class and student information.
+      prompt: `Sen bir uzman belge analistisin. Görevin, sana verilen dosyayı (PDF veya Excel formatında bir öğrenci listesi) analiz ederek içeriği hakkında detaylı bir rapor oluşturmaktır. Cevabın tamamen Türkçe olmalıdır.
 
-The user has provided a file that contains a list of students.
+Kullanıcı bir dosya yükledi. Lütfen aşağıdaki adımları izleyerek bir analiz metni oluştur:
 
-Your tasks are:
-1.  **Identify Class Name:** Scan the document to find the class name. It might be in a header like "5. Sınıf / D Şubesi Sınıf Listesi". You must extract this and normalize it to a format like "5/D".
-2.  **Scan for Student Table:** Locate the table containing the student list. The columns might be labeled "No", "Okul No", "Adı Soyadı", "Adı", "Soyadı", etc. Be flexible.
-3.  **Extract Student Data:** For each student row, extract:
-    -   **Student Number:** From the "No" or "Okul No" column. This must be parsed as a number.
-    -   **Full Name:** From the "Adı Soyadı" or combined "Adı" and "Soyadı" columns.
-4.  **Parse Full Names:** The most critical step. The full name is often in a single column.
-    -   The **last word** of the full name is ALWAYS the "lastName" (Soyadı).
-    -   All preceding words (one or more) make up the "firstName" (Adı).
-    -   Example 1: 'AHMET KEREM ONUS' -> firstName: 'AHMET KEREM', lastName: 'ONUS'.
-    -   Example 2: 'AYŞE YILMAZ' -> firstName: 'AYŞE', lastName: 'YILMAZ'.
-    -   Example 3: 'ZEYNEP SILA' -> firstName: 'ZEYNEP', lastName: 'SILA'.
-5.  **Compile and Format:** Group all extracted students under the correct class name you identified in step 1. If the document has multiple classes, create a separate class object for each. Return the data in the specified JSON format. Ensure all student numbers are parsed as numbers, not strings.
+1.  **Genel Değerlendirme:** Dosyanın genel yapısını (örneğin, "Bu bir PDF belgesi ve bir öğrenci listesi içeriyor gibi görünüyor.") kısaca belirt.
+2.  **Sınıf Tespiti:** Belgeden sınıf adını veya adlarını bulmaya çalış. "5. Sınıf / D Şubesi" gibi ifadeleri ara. Bulduğun sınıf adını/adlarını raporda belirt.
+3.  **Veri Analizi:** Dosyadaki öğrenci verilerini analiz et. Kaç öğrenci bulduğunu, hangi sütunların (Okul No, Adı Soyadı vb.) mevcut olduğunu belirt.
+4.  **Örnek Veri:** Ayrıştırdığın ilk 2-3 öğrencinin bilgilerini (numara, ad, soyad) örnek olarak listele. Bu, kullanıcının verinin doğru anlaşıldığını görmesine yardımcı olur.
+5.  **Sonuç ve Sonraki Adım:** Analizi özetleyen kısa bir cümle kur ve kullanıcıya "Bu verilerle ne yapmak istersiniz?" gibi bir soru sorarak etkileşimi devam ettir.
 
-File to analyze: {{media url=fileDataUri}}`,
+Örnek Çıktı:
+"Yüklediğiniz Excel dosyasını inceledim. Dosya '8/A' sınıfına ait bir öğrenci listesi içeriyor. Listede 'Okul No' ve 'Adı Soyadı' sütunları altında toplam 25 öğrenci bilgisi tespit ettim.
+
+İşte listeden birkaç örnek:
+- 101: Ahmet Yılmaz
+- 102: Ayşe Kaya
+
+Bu verilerle ne yapmak istersiniz? Örneğin, bu öğrencileri sisteme kaydedebilir veya onlar hakkında bir rapor oluşturabilirim."
+
+Lütfen bu formata uygun, kullanıcı dostu bir analiz metni oluştur.
+
+Analiz edilecek dosya: {{media url=fileDataUri}}`,
   });
 
   const studentListParserFlow = ai.defineFlow(
@@ -73,7 +65,10 @@ File to analyze: {{media url=fileDataUri}}`,
     },
     async (input) => {
       const { output } = await prompt(input);
-      return output!;
+      if (!output) {
+        return { analysis: "Yapay zeka dosyayı analiz edemedi." };
+      }
+      return output;
     }
   );
 

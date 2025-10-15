@@ -7,6 +7,8 @@ import { db } from '@/lib/firebase';
 import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import { useAuth } from './use-auth';
 import type { UserProfile, UserRole } from '@/lib/types';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 
 const defaultProfile: Omit<UserProfile, 'email' | 'workplace' | 'hometown' | 'role'> = {
@@ -14,6 +16,7 @@ const defaultProfile: Omit<UserProfile, 'email' | 'workplace' | 'hometown' | 'ro
   title: 'Öğretmen',
   branch: 'Belirtilmemiş',
   avatarUrl: `https://placehold.co/96x96.png`,
+  theme: 'system',
 };
 
 // E-posta adresi için özel admin kontrolü
@@ -65,14 +68,13 @@ export function useUserProfile(userId?: string) {
         }
       }
       setIsLoading(false);
-    }, (error) => {
-      console.error("Failed to load profile from Firestore", error);
-      toast({
-        title: 'Profil Yüklenemedi',
-        description: 'Profil bilgileriniz yüklenirken bir sorun oluştu.',
-        variant: 'destructive',
-      });
-      setIsLoading(false);
+    }, async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: profileDocRef.path,
+            operation: 'get',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        setIsLoading(false);
     });
 
     return () => unsubscribe();

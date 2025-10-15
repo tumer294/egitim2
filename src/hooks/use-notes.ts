@@ -3,10 +3,13 @@
 
 import * as React from 'react';
 import { useToast } from './use-toast';
-import type { Note } from '@/lib/types';
+import type { Note, NoteChecklistItem } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy, where, updateDoc } from 'firebase/firestore';
 import { speechToNoteAction } from '@/app/actions';
+import type { SpeechToNoteOutput } from '@/ai/flows/speech-to-note';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 export function useNotes(userId?: string) {
   const { toast } = useToast();
@@ -46,14 +49,13 @@ export function useNotes(userId?: string) {
 
       setNotes(notesData);
       setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching notes:", error);
-      toast({
-        title: "Hata",
-        description: "Notlar yüklenirken bir hata oluştu.",
-        variant: "destructive"
-      });
-      setIsLoading(false);
+    }, async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: q.path,
+            operation: 'list',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        setIsLoading(false);
     });
 
     return () => {
@@ -64,7 +66,7 @@ export function useNotes(userId?: string) {
     };
   }, [userId, toast]);
   
-  const handleToggleRecording = async (onResult: (text: string) => void) => {
+  const handleToggleRecording = async (onResult: (result: SpeechToNoteOutput, rawTranscript: string) => void) => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast({ title: 'Desteklenmiyor', description: 'Tarayıcınız sesle yazmayı desteklemiyor.', variant: 'destructive' });
@@ -80,8 +82,8 @@ export function useNotes(userId?: string) {
     const recognition = new SpeechRecognition();
     recognitionRef.current = recognition;
     recognition.lang = 'tr-TR';
-    recognition.continuous = false; // We want to process text when user stops talking
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
     let finalTranscript = '';
 
@@ -93,22 +95,28 @@ export function useNotes(userId?: string) {
       setIsRecording(false);
       if (finalTranscript.trim()) {
         setIsTranscribing(true);
-        const result = await speechToNoteAction({ transcript: finalTranscript });
-        if (result.note) {
-          onResult(result.note);
-        } else if (result.error) {
-          toast({ title: 'Çeviri Hatası', description: result.error, variant: 'destructive' });
-          onResult(finalTranscript); // Fallback to raw transcript
-        } else {
-           onResult(finalTranscript); // Fallback to raw transcript if AI gives no response
+        try {
+          const result = await speechToNoteAction({ transcript: finalTranscript });
+          if(result.error) {
+            toast({ title: 'Çeviri Hatası', description: result.error, variant: 'destructive' });
+            onResult({ type: 'text', note: finalTranscript, items: [] }, finalTranscript); // Fallback
+          } else if (result.note || (result.items && result.items.length > 0)) {
+            onResult(result, finalTranscript);
+          } else {
+            onResult({ type: 'text', note: finalTranscript, items: [] }, finalTranscript); // Fallback
+          }
+        } catch (e: any) {
+            toast({ title: 'AI Hatası', description: e.message, variant: 'destructive' });
+            onResult({ type: 'text', note: finalTranscript, items: [] }, finalTranscript); // Fallback
+        } finally {
+            setIsTranscribing(false);
         }
-        setIsTranscribing(false);
       }
       recognitionRef.current = null;
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error !== 'no-speech') {
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
         toast({ title: 'Bir hata oluştu', description: `Ses tanıma hatası: ${event.error}`, variant: 'destructive' });
       }
       setIsRecording(false);
@@ -117,7 +125,15 @@ export function useNotes(userId?: string) {
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      finalTranscript = event.results[0][0].transcript;
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      // You can use the interimTranscript to show live feedback if needed
     };
 
     recognition.start();

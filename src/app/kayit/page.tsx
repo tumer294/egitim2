@@ -62,15 +62,15 @@ export default function KayitPage() {
   }, [user, router, toast]);
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
+    <div className="flex h-screen w-full items-center justify-center bg-gradient-to-br from-sky-200 via-orange-200 to-pink-300 p-4">
+      <Card className="w-full max-w-sm bg-white/30 backdrop-blur-lg border-white/50 shadow-2xl">
+        <CardHeader className="text-center text-white">
             <div className='flex items-center justify-center gap-2 mb-4'>
-                <GraduationCap className="h-8 w-8 text-primary" />
+                <GraduationCap className="h-8 w-8 text-white" />
                 <h1 className='text-2xl font-bold'>SınıfPlanım</h1>
             </div>
-          <CardTitle className="text-2xl">Hesap Oluştur</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl text-slate-800">Hesap Oluştur</CardTitle>
+          <CardDescription className="text-slate-600">
             Devam etmek için bilgilerinizi girin.
           </CardDescription>
         </CardHeader>
@@ -88,11 +88,12 @@ export default function KayitPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>E-posta</FormLabel>
+                    <FormLabel className="text-slate-700">E-posta</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
                         placeholder="ornek@eposta.com"
+                        className="bg-white/50"
                         {...field}
                       />
                     </FormControl>
@@ -105,15 +106,15 @@ export default function KayitPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Şifre</FormLabel>
+                    <FormLabel className="text-slate-700">Şifre</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
+                      <Input type="password" placeholder="••••••••" className="bg-white/50" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white shadow-lg" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -125,9 +126,9 @@ export default function KayitPage() {
               </Button>
             </form>
           </Form>
-          <div className="mt-4 text-center text-sm">
+          <div className="mt-4 text-center text-sm text-slate-600">
             Zaten bir hesabınız var mı?{' '}
-            <Link href="/login" className="underline">
+            <Link href="/login" className="underline font-semibold text-pink-600 hover:text-pink-700">
               Giriş Yap
             </Link>
           </div>

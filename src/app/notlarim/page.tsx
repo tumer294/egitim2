@@ -4,7 +4,7 @@
 
 import * as React from 'react';
 import AppLayout from '@/components/app-layout';
-import { Plus, Trash2, StickyNote, Loader2, Mic, MicOff, Camera, X as CloseIcon, Pin, PinOff, Palette, CheckSquare, ClipboardPaste, Type as TypeIcon, Search, Image as ImageIcon, List as ListIcon, CaseSensitive } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Loader2, Mic, MicOff, Camera, X as CloseIcon, Pin, PinOff, Palette, CheckSquare, ClipboardPaste, Type as TypeIcon, Search, Image as ImageIcon, List as ListIcon, CaseSensitive, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -41,6 +41,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
+import type { SpeechToNoteOutput } from '@/ai/flows/speech-to-note';
 
 
 const noteColors = [
@@ -100,6 +101,7 @@ function NotlarimPageContent() {
   const [isCameraOpen, setIsCameraOpen] = React.useState(false);
   const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
   const [capturedImage, setCapturedImage] = React.useState<string | null>(null);
+  const [cameraFacingMode, setCameraFacingMode] = React.useState<'environment' | 'user'>('environment');
   
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
@@ -129,9 +131,25 @@ function NotlarimPageContent() {
   }, [notes, searchTerm, colorFilter, typeFilter]);
 
   React.useEffect(() => {
+    if (!isCameraOpen) {
+      // Cleanup: Stop any active camera streams when the dialog is closed
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+      return;
+    }
+
     const getCameraPermission = async () => {
+      // Stop previous stream before starting a new one
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+      
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacingMode } });
         setHasCameraPermission(true);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -144,19 +162,20 @@ function NotlarimPageContent() {
           title: 'Kamera Erişimi Reddedildi',
           description: 'Lütfen bu özelliği kullanmak için tarayıcı ayarlarından kamera izinlerini etkinleştirin.',
         });
+        setIsCameraOpen(false); // Close dialog if permission is denied
       }
     };
-    
-    if (isCameraOpen) {
-      getCameraPermission();
-    } else {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-            videoRef.current.srcObject = null;
-        }
-    }
-  }, [isCameraOpen, toast]);
+
+    getCameraPermission();
+
+    // Cleanup function for when the component unmounts or dialog closes
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isCameraOpen, cameraFacingMode, toast]);
   
   const resetForm = () => {
     setNewNoteTitle('');
@@ -219,7 +238,14 @@ function NotlarimPageContent() {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         const context = canvas.getContext('2d');
-        context?.drawImage(video, 0, 0, canvas.width, canvas.height);
+        if(context) {
+            if(cameraFacingMode === 'user') {
+                // Flip the image horizontally for front camera
+                context.translate(canvas.width, 0);
+                context.scale(-1, 1);
+            }
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
         const dataUrl = canvas.toDataURL('image/png');
         setCapturedImage(dataUrl);
     }
@@ -233,22 +259,24 @@ function NotlarimPageContent() {
     }
   };
 
-  const onVoiceNoteReceived = (noteText: string) => {
-     if (newNoteType === 'text') {
-        setNewNoteContent(prev => (prev ? prev + ' ' : '') + noteText);
-    } else {
+  const onVoiceNoteReceived = (result: SpeechToNoteOutput, rawTranscript: string) => {
+      if (result.type === 'checklist' && result.items.length > 0) {
+        setNewNoteType('checklist');
+        const newItems: NoteChecklistItem[] = result.items.map(itemText => ({
+            id: Date.now().toString() + Math.random(),
+            text: itemText,
+            isChecked: false
+        }));
          setNewNoteItems(prevItems => {
-            const lastItem = prevItems[prevItems.length - 1];
-            if (lastItem && lastItem.text.trim() === '') {
-                const updatedItems = [...prevItems];
-                updatedItems[updatedItems.length - 1] = { ...lastItem, text: noteText.trim() };
-                return updatedItems;
-            } else {
-                return [...prevItems, { id: Date.now().toString(), text: noteText.trim(), isChecked: false }];
-            }
+            const filteredOldItems = prevItems.filter(item => item.text.trim() !== '');
+            return [...filteredOldItems, ...newItems];
         });
-    }
-  }
+      } else {
+        const contentToAdd = result.note || rawTranscript;
+        setNewNoteType('text');
+        setNewNoteContent(prev => (prev ? prev + ' ' : '') + contentToAdd);
+      }
+  };
 
 
   const handleUpdateNote = (noteId: string, data: Partial<Note>) => {
@@ -296,6 +324,10 @@ function NotlarimPageContent() {
         console.error('Failed to read clipboard contents: ', err);
         toast({ title: "Hata", description: "Pano içeriği okunamadı.", variant: "destructive" });
     }
+  };
+  
+  const toggleCameraFacingMode = () => {
+    setCameraFacingMode(prevMode => prevMode === 'user' ? 'environment' : 'user');
   };
 
 
@@ -661,13 +693,18 @@ function NotlarimPageContent() {
                   </AlertDescription>
                 </Alert>
             )}
-            <div className="bg-black rounded-md overflow-hidden aspect-video flex items-center justify-center">
+            <div className="relative bg-black rounded-md overflow-hidden aspect-video flex items-center justify-center">
               {capturedImage ? (
                 <img src={capturedImage} alt="Yakalanan Görüntü" className="w-full h-auto"/>
               ) : (
                  <video ref={videoRef} className="w-full h-auto" autoPlay muted playsInline />
               )}
                <canvas ref={canvasRef} className="hidden" />
+               {!capturedImage && hasCameraPermission && (
+                    <Button variant="outline" size="icon" onClick={toggleCameraFacingMode} className="absolute top-2 left-2 bg-black/30 text-white hover:bg-black/50 hover:text-white border-white/50">
+                        <RotateCw className="h-5 w-5" />
+                    </Button>
+               )}
             </div>
           </div>
           <DialogFooter>

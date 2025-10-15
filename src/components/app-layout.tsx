@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -19,6 +18,12 @@ import {
     Bot,
     Bell,
     Vote,
+    BookOpen,
+    FilePenLine,
+    Library,
+    Trophy,
+    Code,
+    Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
@@ -34,7 +39,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
-  } from '@/components/ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useAuth } from '@/hooks/use-auth';
@@ -42,20 +47,37 @@ import { useFCM } from '@/hooks/use-fcm';
 import { useReminders } from '@/hooks/use-reminders';
 import { differenceInHours, isPast } from 'date-fns';
 import { Badge } from './ui/badge';
-import type { Urgency } from '@/lib/types';
+import type { Urgency, Reminder } from '@/lib/types';
+import { Separator } from './ui/separator';
+import { useTheme } from 'next-themes';
+import { FirebaseErrorListener } from './FirebaseErrorListener';
 
-
-const baseMenuItems = [
-    { href: '/anasayfa', label: 'Ana Sayfa', icon: Home },
-    { href: '/gunluk-takip', label: 'Günlük Takip', icon: Users },
-    { href: '/siniflarim', label: 'Sınıflarım', icon: GraduationCap },
-    { href: '/raporlar', label: 'Raporlar', icon: BarChart },
-    { href: '/planlarim', label: 'Planlarım', icon: Calendar },
-    { href: '/hatirlaticilar', label: 'Hatırlatıcılar', icon: Bell },
-    { href: '/notlarim', label: 'Notlarım', icon: StickyNote },
-    { href: '/forum', label: 'Forum', icon: MessageSquare },
-    { href: '/anket', label: 'Anket', icon: Vote },
-    { href: '/yapay-zeka', label: 'Yapay Zeka', icon: Bot },
+const menuGroups = [
+    {
+        title: "Kütüphane",
+        items: [
+            { href: '/anasayfa', label: 'Ana Sayfa', icon: Home },
+            { href: '/siniflarim', label: 'Sınıflarım', icon: GraduationCap },
+            { href: '/gunluk-takip', label: 'Günlük Takip', icon: Users },
+            { href: '/raporlar', label: 'Raporlar', icon: BarChart },
+            { href: '/planlarim', label: 'Planlarım', icon: Calendar },
+        ]
+    },
+    {
+        title: "Yapay Zeka",
+        items: [
+             { href: '/yapay-zeka', label: 'Asistan', icon: Bot },
+             { href: '/hatirlaticilar', label: 'Akıllı Hatırlatıcı', icon: Sparkles },
+        ]
+    },
+    {
+        title: "Öğretmen Kaynakları",
+        items: [
+            { href: '/notlarim', label: 'Notlarım', icon: StickyNote },
+            { href: '/forum', label: 'Forum', icon: MessageSquare },
+            { href: '/anket', label: 'Anketler', icon: Vote },
+        ]
+    },
 ];
 
 const NavContent = ({ onLinkClick, notificationCount, urgency }: { onLinkClick?: () => void, notificationCount: number, urgency: Urgency }) => {
@@ -94,59 +116,71 @@ const NavContent = ({ onLinkClick, notificationCount, urgency }: { onLinkClick?:
 
 
     return (
-        <div className="flex h-full max-h-screen flex-col">
-            <div className="flex h-[60px] items-center border-b px-6">
+        <div className="flex h-full max-h-screen flex-col bg-[var(--sidebar-background)] text-[var(--sidebar-foreground)]">
+            <div className="flex h-14 items-center border-b px-4" style={{ borderColor: 'hsl(var(--border) / 0.5)'}}>
                 <Link href="/anasayfa" className="flex items-center gap-2 font-semibold text-lg" onClick={onLinkClick}>
-                    <GraduationCap className="h-6 w-6 text-primary" />
-                    <span>SınıfPlanım</span>
+                    <GraduationCap className="h-6 w-6 text-[var(--sidebar-primary)]" />
+                    <span className="font-bold">SınıfPlanım</span>
                 </Link>
             </div>
             <div className="flex-1 overflow-y-auto">
-                <nav className="grid items-start px-4 py-4 text-sm font-medium">
-                    {baseMenuItems.map((item) => (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={onLinkClick}
-                            className={cn(
-                                'flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-primary/10 hover:text-primary',
-                                pathname.startsWith(item.href) ? 'bg-primary/10 text-primary' : ''
+                <nav className="grid items-start p-2 text-sm font-medium">
+                    {menuGroups.map((group, groupIndex) => (
+                        <div key={groupIndex} className="py-2">
+                             {group.title && (
+                                <h3 className="px-3 py-2 text-xs font-semibold uppercase text-muted-foreground/80 tracking-wider">{group.title}</h3>
                             )}
-                        >
-                            <div className='relative'>
-                                <item.icon className="h-5 w-5" />
-                                {item.icon === Bell && notificationCount > 0 && (
-                                     <Badge variant={badgeVariant} className="absolute -top-1 -right-2 h-4 w-4 justify-center rounded-full p-0 text-[10px]">
-                                        {notificationCount}
-                                     </Badge>
-                                )}
-                            </div>
-                            {item.label}
-                        </Link>
+                            {group.items.map((item) => {
+                                const isActive = item.href === '/anasayfa' ? pathname === item.href : pathname.startsWith(item.href);
+                                return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    onClick={onLinkClick}
+                                    className={cn(
+                                        'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[var(--sidebar-foreground)] opacity-90 transition-all hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)] hover:opacity-100',
+                                        isActive && 'bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] opacity-100 hover:bg-[var(--sidebar-primary)]/90 hover:text-[var(--sidebar-primary-foreground)]'
+                                    )}
+                                >
+                                    <div className='relative'>
+                                        <item.icon className="h-5 w-5" />
+                                        {item.href === '/hatirlaticilar' && notificationCount > 0 && (
+                                            <Badge variant={badgeVariant} className="absolute -top-1 -right-2 h-4 w-4 justify-center rounded-full p-0 text-[10px]">
+                                                {notificationCount}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    {item.label}
+                                </Link>
+                            )})}
+                        </div>
                     ))}
                     {profile?.role === 'admin' && (
-                         <Link
-                            href="/admin"
-                            onClick={onLinkClick}
-                            className={cn(
-                                'flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive',
-                                pathname.startsWith('/admin') ? 'bg-destructive/10 text-destructive' : ''
-                            )}
-                        >
-                            <ShieldCheck className="h-5 w-5" />
-                            Admin Paneli
-                        </Link>
+                        <div className='py-2'>
+                             <h3 className="px-3 py-2 text-xs font-semibold uppercase text-muted-foreground/80 tracking-wider">Yönetim</h3>
+                             <Link
+                                href="/admin"
+                                onClick={onLinkClick}
+                                className={cn(
+                                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-destructive/80 transition-all hover:bg-destructive/10 hover:text-destructive',
+                                    pathname.startsWith('/admin') ? 'bg-destructive/10 text-destructive' : ''
+                                )}
+                            >
+                                <ShieldCheck className="h-5 w-5" />
+                                Admin Paneli
+                            </Link>
+                        </div>
                     )}
                 </nav>
             </div>
-            <div className="mt-auto p-4 border-t">
-                 <nav className="grid items-start gap-2 px-2 text-sm font-medium">
+            <div className="mt-auto p-4 border-t" style={{ borderColor: 'hsl(var(--border) / 0.5)'}}>
+                 <nav className="grid items-start gap-1 px-2 text-sm font-medium">
                     <Link
                         href="/ayarlar"
                         onClick={onLinkClick}
                         className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-primary/10 hover:text-primary',
-                            pathname.startsWith('/ayarlar') ? 'bg-primary/10 text-primary' : ''
+                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[var(--sidebar-foreground)] opacity-90 transition-all hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)] hover:opacity-100',
+                             pathname.startsWith('/ayarlar') ? 'bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] opacity-100 hover:bg-[var(--sidebar-primary)]/90 hover:text-[var(--sidebar-primary-foreground)]' : ''
                         )}
                         >
                         <Settings className="h-5 w-5" />
@@ -154,7 +188,7 @@ const NavContent = ({ onLinkClick, notificationCount, urgency }: { onLinkClick?:
                     </Link>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <button className={cn('flex w-full items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive')}>
+                            <button className={cn('flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-destructive/80 transition-all hover:bg-destructive/10 hover:text-destructive')}>
                                 <LogOut className="h-5 w-5" />
                                 Çıkış Yap
                             </button>
@@ -183,90 +217,40 @@ const NavContent = ({ onLinkClick, notificationCount, urgency }: { onLinkClick?:
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const { user } = useAuth();
     const { profile } = useUserProfile(user?.uid);
-    const { reminders } = useReminders(user?.uid);
-    const [notificationCount, setNotificationCount] = React.useState(0);
-    const [urgency, setUrgency] = React.useState<Urgency>('none');
-    const [open, setOpen] = React.useState(false);
-    
+    const { notificationCount, urgency } = useReminders(user?.uid);
+    const [isMobileSheetOpen, setIsMobileSheetOpen] = React.useState(false);
+    const { theme } = useTheme();
+
     // Initialize FCM
     useFCM();
 
-    React.useEffect(() => {
-        const calculateNotifications = () => {
-            const now = new Date();
-            const upcomingReminders = reminders.filter(r => !r.isCompleted);
-            
-            let count = 0;
-            let mostUrgent: Urgency = 'none';
-            const urgencyOrder: Urgency[] = ['none', 'info', 'urgent', 'veryUrgent', 'pastDue'];
-
-            for (const reminder of upcomingReminders) {
-                const dueDate = new Date(reminder.dueDate);
-                if (reminder.time) {
-                    const [hours, minutes] = reminder.time.split(':');
-                    dueDate.setHours(parseInt(hours), parseInt(minutes));
-                } else {
-                    dueDate.setHours(0, 0, 0, 0);
-                }
-                
-                // Continue if the due date is more than 3 days away
-                const hoursUntilDue = differenceInHours(dueDate, now);
-                if (hoursUntilDue > 72) continue;
-
-                let currentUrgency: Urgency = 'none';
-
-                if (isPast(dueDate)) {
-                    currentUrgency = 'pastDue';
-                } else if (hoursUntilDue < 24) {
-                    currentUrgency = 'veryUrgent'; // Less than 1 day
-                } else if (hoursUntilDue < 48) {
-                    currentUrgency = 'urgent'; // Less than 2 days
-                } else if (hoursUntilDue < 72) {
-                    currentUrgency = 'info'; // Less than 3 days
-                }
-
-                if (currentUrgency !== 'none') {
-                    count++;
-                    if (urgencyOrder.indexOf(currentUrgency) > urgencyOrder.indexOf(mostUrgent)) {
-                        mostUrgent = currentUrgency;
-                    }
-                }
-            }
-            setNotificationCount(count);
-            setUrgency(count > 0 ? mostUrgent : 'none');
-        };
-
-        calculateNotifications();
-        const interval = setInterval(calculateNotifications, 60000);
-        return () => clearInterval(interval);
-    }, [reminders]);
-
     return (
         <div className="grid min-h-screen w-full md:grid-cols-[280px_1fr]">
-            <div className="hidden border-r bg-card md:block">
+            <FirebaseErrorListener />
+            <div className="hidden border-r bg-sidebar md:block">
                 <NavContent notificationCount={notificationCount} urgency={urgency} />
             </div>
             <div className="flex flex-col">
-                <header className="flex h-[60px] items-center gap-4 border-b bg-card px-6">
-                    <Sheet open={open} onOpenChange={setOpen}>
+                <header className={cn(
+                    "flex h-14 items-center gap-4 px-4 md:hidden",
+                    theme === 'light'
+                        ? 'bg-background border-b'
+                        : 'bg-primary border-primary'
+                )}>
+                     <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
                         <SheetTrigger asChild>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="shrink-0 md:hidden"
-                            >
-                                <Menu className="h-5 w-5" />
-                                <span className="sr-only">Menüyü aç/kapat</span>
+                            <Button variant="ghost" size="icon" className={cn(
+                                theme !== 'light' && 'text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground'
+                            )}>
+                                <Menu className="h-6 w-6" />
                             </Button>
                         </SheetTrigger>
                         <SheetContent side="left" className="flex flex-col p-0 w-full max-w-[280px]">
-                            <SheetHeader className='sr-only'>
-                                <SheetTitle>Ana Menü</SheetTitle>
-                                <SheetDescription>
-                                    Uygulama içinde gezinmek için bu menüyü kullanın.
-                                </SheetDescription>
-                            </SheetHeader>
-                             <NavContent onLinkClick={() => setOpen(false)} notificationCount={notificationCount} urgency={urgency} />
+                             <SheetHeader className="sr-only">
+                                <SheetTitle>Menü</SheetTitle>
+                                <SheetDescription>Ana gezinme menüsü</SheetDescription>
+                             </SheetHeader>
+                             <NavContent onLinkClick={() => setIsMobileSheetOpen(false)} notificationCount={notificationCount} urgency={urgency} />
                         </SheetContent>
                     </Sheet>
                     <div className="w-full flex-1" />
@@ -277,7 +261,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         </Avatar>
                     </Link>
                 </header>
-                <div className="flex-1 overflow-auto bg-background">
+                <div className="flex-1 overflow-auto bg-muted/40">
                     {children}
                 </div>
             </div>

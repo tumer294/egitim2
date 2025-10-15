@@ -6,6 +6,8 @@ import { useToast } from './use-toast';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, addDoc, doc, query, orderBy, writeBatch, getDocs } from 'firebase/firestore';
 import type { ChatMessage } from '@/lib/types';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 export function useAssistantChat(userId?: string) {
   const { toast } = useToast();
@@ -28,14 +30,13 @@ export function useAssistantChat(userId?: string) {
       const messagesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatMessage));
       setMessages(messagesData);
       setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching assistant chat messages:", error);
-      toast({
-        title: "Sohbet Yüklenemedi",
-        description: "Mesaj geçmişiniz yüklenirken bir hata oluştu.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
+    }, async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: q.path,
+            operation: 'list',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        setIsLoading(false);
     });
 
     return () => unsubscribe();

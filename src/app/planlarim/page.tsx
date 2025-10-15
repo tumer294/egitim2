@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Trash2, FileText, Plus, Loader2, Download, Sheet as ExcelIcon, File as WordIcon, Search } from 'lucide-react';
+import { Trash2, FileText, Plus, Loader2, Download, Sheet as ExcelIcon, File as WordIcon, Search, FolderOpen, LayoutGrid, List } from 'lucide-react';
 import AppLayout from '@/components/app-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ import { usePlans } from '@/hooks/use-plans';
 import { getAcademicWeek } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 
 const PLANS_STORAGE_KEY_PREFIX = 'lesson-plans_';
@@ -46,7 +47,6 @@ function PlanlarimPageContent() {
   const [viewingPlanContent, setViewingPlanContent] = React.useState<LessonPlanEntry[] | null>(null);
   const [viewingPlanTitle, setViewingPlanTitle] = React.useState<string>('');
   const [startWeekForPlan, setStartWeekForPlan] = React.useState<number>(1);
-  const [planTypeFilter, setPlanTypeFilter] = React.useState('all');
   const [searchTerm, setSearchTerm] = React.useState('');
 
 
@@ -175,14 +175,16 @@ function PlanlarimPageContent() {
     setViewingPlanContent(null);
     setViewingPlanTitle('');
   }
-
-  const filteredPlans = React.useMemo(() => {
-    return plans.filter(plan => {
-      const matchesType = planTypeFilter === 'all' || plan.type === planTypeFilter;
-      const matchesSearch = searchTerm === '' || plan.title.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesType && matchesSearch;
-    });
-  }, [plans, planTypeFilter, searchTerm]);
+  
+  const filteredPlans = (type: 'annual' | 'weekly') => {
+      return plans.filter(plan => 
+          plan.type === type &&
+          (searchTerm === '' || plan.title.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+  }
+  
+  const annualPlans = filteredPlans('annual');
+  const weeklyPlans = filteredPlans('weekly');
 
 
   if (isLoading) {
@@ -194,59 +196,20 @@ function PlanlarimPageContent() {
       </AppLayout>
     );
   }
-
-  return (
-    <AppLayout>
-      <main className="flex-1 space-y-4 p-4 md:p-8 pt-6 relative">
-        <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">Planlarım</h2>
-          <UploadPlanForm onAddPlan={handleAddPlan} />
-        </div>
-
-        <Card>
-            <CardContent className="p-4 flex flex-col md:flex-row items-center gap-4">
-                 <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                        placeholder="Plan başlığına göre ara..."
-                        className="pl-10 w-full"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <Select value={planTypeFilter} onValueChange={setPlanTypeFilter}>
-                    <SelectTrigger className="w-full md:w-[240px]">
-                        <SelectValue placeholder="Plan Türüne Göre Filtrele" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Tüm Planlar</SelectItem>
-                        <SelectItem value="annual">Yıllık Planlar</SelectItem>
-                        <SelectItem value="weekly">Haftalık Planlar</SelectItem>
-                    </SelectContent>
-                </Select>
-            </CardContent>
-        </Card>
-
-        {filteredPlans.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center rounded-lg border-2 border-dashed min-h-[50vh]">
-            <div className="text-center">
-              <FileText className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
-                {plans.length === 0 ? 'Henüz plan oluşturulmadı' : 'Bu kriterlere uygun plan bulunamadı'}
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {plans.length === 0 ? 'Yeni bir ders planı yükleyerek başlayın.' : 'Filtreleri temizlemeyi veya yeni bir plan eklemeyi deneyin.'}
-              </p>
-              {plans.length === 0 && (
-                 <div className="mt-6">
-                    <UploadPlanForm onAddPlan={handleAddPlan} isFirstPlan={true} />
-                </div>
-              )}
+  
+  const renderPlanList = (planList: Plan[]) => {
+      if (planList.length === 0) {
+          return (
+             <div className="text-center p-10 text-muted-foreground col-span-full">
+                <FolderOpen className="mx-auto h-12 w-12" />
+                <h3 className="mt-4 text-lg font-semibold">Bu kategoride plan bulunmuyor.</h3>
+                <p className="mt-2 text-sm">Filtreleri temizlemeyi veya yeni bir plan eklemeyi deneyin.</p>
             </div>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {filteredPlans.map((plan) => (
+          )
+      }
+      return (
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-6">
+            {planList.map((plan) => (
               <Card key={plan.id} className="flex flex-col">
                 <CardHeader className="flex-row items-start justify-between p-4">
                     <div>
@@ -301,6 +264,63 @@ function PlanlarimPageContent() {
               </Card>
             ))}
           </div>
+      )
+  }
+
+  return (
+    <AppLayout>
+      <main className="flex-1 space-y-4 p-4 md:p-8 pt-6 relative">
+        <div className="flex items-center justify-between space-y-2">
+          <h2 className="text-3xl font-bold tracking-tight">Planlarım</h2>
+          <UploadPlanForm onAddPlan={handleAddPlan} />
+        </div>
+
+        <Card>
+            <CardContent className="p-4 flex flex-col md:flex-row items-center gap-4">
+                 <div className="relative flex-1 w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                        placeholder="Plan başlığına göre ara..."
+                        className="pl-10 w-full"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </CardContent>
+        </Card>
+        
+        <Tabs defaultValue="annual" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="annual">Yıllık Planlar</TabsTrigger>
+                <TabsTrigger value="weekly">Haftalık Planlar</TabsTrigger>
+            </TabsList>
+            <TabsContent value="annual">
+                {isLoading ? (
+                    <div className='flex justify-center p-10'><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : renderPlanList(annualPlans)}
+            </TabsContent>
+            <TabsContent value="weekly">
+                {isLoading ? (
+                     <div className='flex justify-center p-10'><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : renderPlanList(weeklyPlans)}
+            </TabsContent>
+        </Tabs>
+
+        {plans.length === 0 && !isLoading && (
+             <div className="flex-1 flex items-center justify-center rounded-lg border-2 border-dashed min-h-[50vh] mt-8">
+                <div className="text-center">
+                <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                    Henüz plan oluşturulmadı
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                    Yeni bir ders planı yükleyerek başlayın.
+                </p>
+                 <div className="mt-6">
+                    <UploadPlanForm onAddPlan={handleAddPlan} isFirstPlan={true} />
+                </div>
+                </div>
+            </div>
         )}
 
         <PlanViewer 
@@ -325,7 +345,3 @@ export default function PlanlarimPage() {
   }
 
     
-
-
-
-

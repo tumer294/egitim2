@@ -22,6 +22,8 @@ import {
 import { useToast } from './use-toast';
 import type { ForumPost, ForumReply, ForumComment, ForumAuthor } from '@/lib/types';
 import { addReplyAction } from '@/app/actions';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 
 // Hook to fetch all forum posts
@@ -38,14 +40,13 @@ export function useForum() {
       const postsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ForumPost));
       setPosts(postsData);
       setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching forum posts:", error);
-      toast({
-        title: "Forum Yüklenemedi",
-        description: "Gönderiler yüklenirken bir hata oluştu.",
-        variant: "destructive"
-      });
-      setIsLoading(false);
+    }, async (error) => {
+        const permissionError = new FirestorePermissionError({
+            path: postsQuery.path,
+            operation: 'list',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -83,9 +84,9 @@ export function useForumPost(postId: string) {
           } else {
               setPost(null);
           }
-      }, (error) => {
-          console.error(`Error fetching post ${postId}:`, error);
-          toast({ title: "Hata", description: "Gönderi yüklenemedi.", variant: "destructive" });
+      }, async (error) => {
+          const permissionError = new FirestorePermissionError({ path: postDocRef.path, operation: 'get' } satisfies SecurityRuleContext);
+          errorEmitter.emit('permission-error', permissionError);
       });
 
       const repliesQuery = query(collection(db, `forum/${postId}/replies`), orderBy('date', 'asc'));
@@ -99,14 +100,17 @@ export function useForumPost(postId: string) {
             const commentsQuery = query(collection(db, `forum/${postId}/replies/${reply.id}/comments`), orderBy('date', 'asc'));
             return getDocs(commentsQuery).then(commentsSnapshot => {
                 allComments[reply.id] = commentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ForumComment));
+            }).catch(async (error) => {
+                 const permissionError = new FirestorePermissionError({ path: commentsQuery.path, operation: 'list' } satisfies SecurityRuleContext);
+                 errorEmitter.emit('permission-error', permissionError);
             });
         });
         await Promise.all(commentPromises);
         setComments(allComments);
         setIsLoading(false); // All data is loaded
-      }, (error) => {
-        console.error(`Error fetching replies for post ${postId}:`, error);
-        toast({ title: "Hata", description: "Cevaplar yüklenemedi.", variant: "destructive" });
+      }, async (error) => {
+        const permissionError = new FirestorePermissionError({ path: repliesQuery.path, operation: 'list' } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
         setIsLoading(false);
       });
   

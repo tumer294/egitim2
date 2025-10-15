@@ -2,20 +2,22 @@
 'use client';
 
 import * as React from 'react';
-import { Bot, Loader2, Send, User, Trash2 } from 'lucide-react';
+import { Bot, Loader2, Send, User, Trash2, Mic, MicOff, Paperclip, Search, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/components/app-layout';
 import AuthGuard from '@/components/auth-guard';
 import { useToast } from '@/hooks/use-toast';
-import { assistantAction } from '@/app/actions';
+import { assistantAction, parseStudentListAction } from '@/app/actions';
 import type { ChatMessage } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/use-auth';
 import { useAssistantChat } from '@/hooks/use-assistant-chat';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-
+import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 function YapayZekaPageContent() {
   const { user } = useAuth();
@@ -24,7 +26,10 @@ function YapayZekaPageContent() {
   
   const [input, setInput] = React.useState('');
   const [isResponding, setIsResponding] = React.useState(false);
+  const [isUploading, setIsUploading] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -34,18 +39,16 @@ function YapayZekaPageContent() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent, customInput?: string) => {
     e.preventDefault();
-    if (!input.trim() || isResponding) return;
+    const messageContent = customInput || input;
+    if (!messageContent.trim() || isResponding) return;
 
-    const userMessageContent = input;
     setInput('');
     
-    // Add user message to Firestore
-    await addMessage({ role: 'user', content: userMessageContent });
+    await addMessage({ role: 'user', content: messageContent });
     
-    // Create a temporary history for the AI action
-    const currentHistory = [...messages, { id: 'temp', role: 'user', content: userMessageContent, timestamp: new Date().toISOString() }];
+    const currentHistory = [...messages, { id: 'temp', role: 'user', content: messageContent, timestamp: new Date().toISOString() }];
 
     setIsResponding(true);
     try {
@@ -73,6 +76,67 @@ function YapayZekaPageContent() {
     }
   };
   
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      if (file.type !== 'application/pdf') {
+          toast({
+              title: 'Geçersiz Dosya Türü',
+              description: 'Lütfen sadece PDF formatında bir dosya yükleyin.',
+              variant: 'destructive',
+          });
+          return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUri = e.target?.result as string;
+        await addMessage({
+          role: 'user',
+          content: `[Kullanıcı "${file.name}" adlı bir dosya yükledi.]`
+        });
+
+        const result = await parseStudentListAction({ fileDataUri: dataUri });
+
+        if (result.error || !result.analysis) {
+          toast({ title: 'Dosya İşlenemedi', description: result.error || 'Dosya içeriği analiz edilirken bir hata oluştu.', variant: 'destructive' });
+           await addMessage({ role: 'model', content: `"${file.name}" dosyasını işlerken bir hata oluştu.` });
+        } else {
+          await addMessage({ role: 'model', content: result.analysis });
+        }
+      };
+      reader.onerror = () => {
+         toast({ title: 'Hata', description: 'Dosya okunurken bir hata oluştu.', variant: 'destructive' });
+      };
+      reader.readAsDataURL(file);
+    } catch (error: any) {
+      toast({ title: 'Hata', description: `Dosya yüklenirken bir hata oluştu: ${error.message}`, variant: 'destructive' });
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if(event.target) event.target.value = '';
+    }
+  };
+  
+    const handleCopyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: 'Kopyalandı!',
+        description: 'Yapay zeka cevabı panoya kopyalandı.',
+      });
+    }, (err) => {
+      toast({
+        title: 'Hata',
+        description: 'Panoya kopyalanamadı.',
+        variant: 'destructive',
+      });
+    });
+  };
+
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -101,8 +165,8 @@ function YapayZekaPageContent() {
 
   return (
     <AppLayout>
-      <main className="flex h-full flex-col">
-        <div className="flex items-center justify-between border-b p-4">
+      <main className="flex h-full flex-col bg-background">
+         <div className="flex items-center justify-between border-b p-4">
             <div className="flex items-center gap-2">
                  <Bot className="h-6 w-6 text-primary" />
                  <h2 className="text-xl font-bold">EduBot Asistan</h2>
@@ -128,81 +192,130 @@ function YapayZekaPageContent() {
                 </AlertDialog>
             )}
         </div>
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
-          {isLoading ? (
-             <div className="flex items-center justify-center h-full">
-                 <Loader2 className="h-8 w-8 animate-spin" />
-             </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <h2 className="mt-4 text-2xl font-bold">Nasıl Yardımcı Olabilirim?</h2>
-              <p className="mt-2 text-muted-foreground">
-                Ders planı fikirleri, sınıf yönetimi teknikleri veya herhangi bir konuda bana danışabilirsiniz.
-              </p>
-            </div>
-          ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  'flex items-start gap-4',
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                )}
-              >
-                {message.role === 'model' && (
-                  <Avatar className="h-8 w-8 bg-primary text-primary-foreground flex items-center justify-center">
-                     <Bot className="h-5 w-5" />
-                  </Avatar>
-                )}
-                <div
-                  className={cn(
-                    'max-w-md rounded-xl p-3 shadow-sm',
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  )}
-                >
-                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+        <ScrollArea className="flex-1">
+          <div className="p-4 md:p-6 space-y-6">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                    <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
-                 {message.role === 'user' && (
-                  <Avatar className="h-8 w-8">
-                     <User className="h-5 w-5" />
-                  </Avatar>
-                )}
-              </div>
-            ))
-          )}
-           {isResponding && (
-              <div className="flex items-start gap-4 justify-start">
-                  <Avatar className="h-8 w-8 bg-primary text-primary-foreground flex items-center justify-center">
-                      <Bot className="h-5 w-5" />
-                  </Avatar>
-                  <div className="max-w-md rounded-xl p-3 shadow-sm bg-muted flex items-center">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center py-10">
+                    <Button variant="outline" size="lg" className='mb-8' onClick={() => setInput('Merhaba')}>Merhaba</Button>
+                    <div className='flex items-start gap-4'>
+                        <Avatar className="h-8 w-8 bg-primary text-primary-foreground flex items-center justify-center">
+                            <Bot className="h-5 w-5" />
+                        </Avatar>
+                        <div className="max-w-md rounded-xl p-3 shadow-sm bg-muted">
+                             <p className="whitespace-pre-wrap text-sm">Merhaba! Size nasıl yardımcı olabilirim?</p>
+                        </div>
+                    </div>
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={cn(
+                      'flex flex-col gap-2',
+                      message.role === 'user' ? 'items-end' : 'items-start'
+                    )}
+                  >
+                    <div className={cn(
+                      'flex items-start gap-4 w-full',
+                      message.role === 'user' ? 'justify-end' : 'justify-start'
+                    )}>
+                      {message.role === 'model' && (
+                        <Avatar className="h-8 w-8 bg-primary text-primary-foreground flex items-center justify-center">
+                          <Bot className="h-5 w-5" />
+                        </Avatar>
+                      )}
+                      <div
+                        className={cn(
+                          'max-w-[85%] rounded-xl p-3 shadow-sm',
+                          message.role === 'user'
+                            ? 'bg-muted'
+                            : 'bg-muted'
+                        )}
+                      >
+                        <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                      </div>
+                      {message.role === 'user' && (
+                        <Avatar className="h-8 w-8 bg-muted rounded-full flex items-center justify-center">
+                          <User className="h-5 w-5" />
+                        </Avatar>
+                      )}
+                    </div>
+                    {message.role === 'model' && (
+                        <div className={cn("flex pl-12")}>
+                          <Button variant="ghost" size="sm" className="h-7 text-muted-foreground hover:text-foreground" onClick={() => handleCopyToClipboard(message.content)}>
+                              <Copy className="h-4 w-4 mr-2" />
+                              Kopyala
+                          </Button>
+                        </div>
+                      )}
                   </div>
-              </div>
-           )}
-          <div ref={messagesEndRef} />
-        </div>
+                ))
+              )}
+              {isResponding && (
+                  <div className="flex items-start gap-4 justify-start">
+                      <Avatar className="h-8 w-8 bg-primary text-primary-foreground flex items-center justify-center">
+                          <Bot className="h-5 w-5" />
+                      </Avatar>
+                      <div className="max-w-md rounded-xl p-3 shadow-sm bg-muted flex items-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      </div>
+                  </div>
+              )}
+              <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
 
-        <div className="border-t bg-background p-4">
-          <form onSubmit={handleSendMessage} className="relative flex items-center gap-2">
-            <Textarea
-              placeholder="EduBot'a bir mesaj yazın..."
-              className="min-h-[40px] w-full resize-none pr-16"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            <Button
-              type="submit"
-              size="icon"
-              className="absolute right-2 top-1/2 -translate-y-1/2"
-              disabled={isResponding || !input.trim()}
-            >
-              {isResponding ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-            </Button>
-          </form>
+        <div className="border-t bg-background p-4 space-y-2">
+             <div className="grid gap-2">
+                <form onSubmit={handleSendMessage} className="relative">
+                    <Textarea
+                        placeholder="Mesaj gönder"
+                        className="w-full resize-none border rounded-xl focus-visible:ring-1 pr-24"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        rows={1}
+                    />
+                    <div className="absolute top-1/2 right-2 -translate-y-1/2 flex items-center gap-1">
+                       <input
+                          type="file"
+                          ref={fileInputRef}
+                          className="hidden"
+                          onChange={handleFileChange}
+                          accept=".pdf"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isUploading || isResponding}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {isUploading ? <Loader2 className="h-5 w-5 animate-spin"/> : <Paperclip className="h-5 w-5 text-muted-foreground" />}
+                        </Button>
+                        <Button
+                        type="submit"
+                        size="icon"
+                        className="bg-primary hover:bg-primary/90"
+                        disabled={isResponding || !input.trim()}
+                        >
+                        {isResponding ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                        </Button>
+                    </div>
+                </form>
+                 <Alert className="py-2 text-center">
+                    <AlertDescription className="text-xs">
+                        Dosya analizi için lütfen öğrenci listenizi <strong>PDF</strong> formatında yükleyin.
+                    </AlertDescription>
+                </Alert>
+            </div>
+           <p className="text-xs text-center text-muted-foreground">
+             YZ tarafından oluşturulan yanıtlar hatalar içerebilir. Önemli bilgileri doğrulayın.
+           </p>
         </div>
       </main>
     </AppLayout>

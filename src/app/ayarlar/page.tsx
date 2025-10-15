@@ -11,13 +11,19 @@ import {
   Mail,
   Book,
   MapPin,
-  Palette,
   Camera,
   Loader2,
   Globe,
   Moon,
   Sun,
-  Sparkles,
+  Droplets,
+  Trees,
+  Sunset,
+  Milestone,
+  Binary,
+  Sparkle,
+  Gem,
+  Palette,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
@@ -30,6 +36,8 @@ import type { UserProfile } from '@/hooks/use-user-profile';
 import { useAuth } from '@/hooks/use-auth';
 import AuthGuard from '@/components/auth-guard';
 import { useTheme } from 'next-themes';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 
 
 function AyarlarPageContent() {
@@ -40,6 +48,13 @@ function AyarlarPageContent() {
   const [isEditing, setIsEditing] = React.useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  
+  React.useEffect(() => {
+    if (profile?.theme) {
+      setTheme(profile.theme);
+    }
+  }, [profile?.theme, setTheme]);
+
 
   const handleProfileUpdate = (updatedProfile: UserProfile) => {
     if (!user?.uid) return;
@@ -91,6 +106,13 @@ function AyarlarPageContent() {
     });
     setIsChangePasswordOpen(false);
   }
+  
+  const handleThemeChange = (newTheme: string) => {
+    if (profile) {
+      setTheme(newTheme);
+      updateProfile({ ...profile, theme: newTheme });
+    }
+  };
 
   if (isLoading || !profile) {
     return (
@@ -185,41 +207,70 @@ function AyarlarPageContent() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Görünüm</CardTitle>
-                  <CardDescription>Uygulamanın arayüzünü kişiselleştirin.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm font-medium mb-4">Tema Seçimi</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div
-                      onClick={() => setTheme('light')}
-                      className={cn(
-                        'p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2',
-                        theme === 'light'
-                          ? 'border-primary'
-                          : 'border-border'
-                      )}
-                    >
-                      <Sun className="h-8 w-8" />
-                      <h3 className="font-semibold">Açık Tema</h3>
-                    </div>
-                    <div
-                      onClick={() => setTheme('dark')}
-                      className={cn(
-                        'p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2',
-                        theme === 'dark'
-                          ? 'border-primary'
-                          : 'border-border'
-                      )}
-                    >
-                      <Moon className="h-8 w-8" />
-                      <h3 className="font-semibold">Koyu Tema</h3>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                <Accordion type="single" collapsible>
+                    <AccordionItem value="item-1" className='border-none'>
+                        <Card>
+                            <AccordionTrigger className='p-6 hover:no-underline'>
+                                <div className='flex flex-col items-start text-left'>
+                                    <CardTitle className='flex items-center gap-2'>
+                                        <Palette className='h-5 w-5'/>
+                                        Görünüm ve Tema Ayarları
+                                    </CardTitle>
+                                    <CardDescription className='mt-1'>Uygulamanın arayüzünü ve renk paletini kişiselleştirin.</CardDescription>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <CardContent>
+                                    <p className="text-sm font-medium mb-4">Tema Seçimi</p>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div onClick={() => handleThemeChange('light')} className={cn('p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-slate-50 text-slate-800', theme === 'light' ? 'border-blue-500' : 'border-slate-200')}>
+                                            <Sun className="h-8 w-8 text-yellow-500" />
+                                            <h3 className="font-semibold text-sm text-center">Açık</h3>
+                                        </div>
+                                        <div onClick={() => handleThemeChange('dark')} className={cn('p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-slate-900 text-slate-50', theme === 'dark' ? 'border-cyan-400' : 'border-slate-700')}>
+                                            <Moon className="h-8 w-8 text-cyan-400" />
+                                            <h3 className="font-semibold text-sm text-center">Koyu</h3>
+                                        </div>
+                                        <div onClick={() => handleThemeChange('ocean')} className={cn('p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-cyan-50 text-cyan-900', theme === 'ocean' ? 'border-red-500' : 'border-cyan-200')}>
+                                            <Droplets className="h-8 w-8 text-cyan-600" />
+                                            <h3 className="font-semibold text-sm text-center">Okyanus</h3>
+                                        </div>
+                                        <div onClick={() => handleThemeChange('forest')} className={cn('p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-emerald-50 text-emerald-900', theme === 'forest' ? 'border-amber-600' : 'border-emerald-200')}>
+                                            <Trees className="h-8 w-8 text-emerald-600" />
+                                            <h3 className="font-semibold text-sm text-center">Orman</h3>
+                                        </div>
+                                        <div onClick={() => handleThemeChange('sunset')} className={cn('p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-orange-50 text-orange-900', theme === 'sunset' ? 'border-purple-600' : 'border-orange-200')}>
+                                            <Sunset className="h-8 w-8 text-pink-500" />
+                                            <h3 className="font-semibold text-sm text-center">Gün Batımı</h3>
+                                        </div>
+                                        <div onClick={() => handleThemeChange('mint')} className={cn('p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-teal-50 text-teal-900', theme === 'mint' ? 'border-cyan-500' : 'border-teal-200')}>
+                                            <Milestone className="h-8 w-8 text-teal-500" />
+                                            <h3 className="font-semibold text-sm text-center">Nane</h3>
+                                        </div>
+                                        <div onClick={() => handleThemeChange('matrix')} className={cn('p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-black text-green-400', theme === 'matrix' ? 'border-green-400' : 'border-green-900')}>
+                                            <Binary className="h-8 w-8" />
+                                            <h3 className="font-semibold text-sm text-center">Matrix</h3>
+                                        </div>
+                                        <div onClick={() => handleThemeChange('rose')} className={cn('p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-rose-50 text-rose-900', theme === 'rose' ? 'border-orange-500' : 'border-rose-200')}>
+                                            <Sparkle className="h-8 w-8 text-rose-500" />
+                                            <h3 className="font-semibold text-sm text-center">Gül</h3>
+                                        </div>
+                                        <div onClick={() => handleThemeChange('premium')} className={cn('relative p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-slate-100 text-slate-800', theme === 'premium' ? 'border-purple-500' : 'border-slate-300')}>
+                                            <Badge variant="premium" className='absolute -top-2 -right-2'>Premium</Badge>
+                                            <Gem className="h-8 w-8 text-purple-600" />
+                                            <h3 className="font-semibold text-sm text-center">Premium</h3>
+                                        </div>
+                                        <div onClick={() => handleThemeChange('ultra')} className={cn('relative p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-gray-800 text-gray-50', theme === 'ultra' ? 'border-green-400' : 'border-gray-700')}>
+                                            <Badge variant="premium" className='absolute -top-2 -right-2 bg-gradient-to-r from-purple-500 to-green-500'>Ultra</Badge>
+                                            <Gem className="h-8 w-8 text-purple-500" />
+                                            <h3 className="font-semibold text-sm text-center">Ultra</h3>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </AccordionContent>
+                        </Card>
+                    </AccordionItem>
+                </Accordion>
 
               <Card>
                 <CardHeader>
@@ -264,3 +315,7 @@ export default function AyarlarPage() {
       </AuthGuard>
     );
   }
+
+    
+
+    

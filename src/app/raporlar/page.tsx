@@ -672,44 +672,46 @@ function RaporlarPageContent() {
                             </TableHeader>
                             <TableBody>
                             {classReportData.studentSummaries.map(student => (
-                                <Collapsible key={student.id} asChild>
-                                    <>
-                                        <TableRow>
-                                            <TableCell className="font-medium">{student.studentNumber}</TableCell>
-                                            <TableCell>{student.firstName} {student.lastName}</TableCell>
-                                            {statusOptions.map(opt => (
-                                                <TableCell key={opt.value} className="text-center">{student.summary[opt.value as AttendanceStatus]}</TableCell>
-                                            ))}
-                                            <TableCell className="text-right font-bold">{student.totalScore}</TableCell>
-                                            <TableCell className="text-center">
-                                                {student.notes.length > 0 ? (
-                                                    <CollapsibleTrigger asChild>
-                                                        <Button variant="ghost" size="sm">
-                                                            <ChevronDown className="h-4 w-4" />
-                                                            <span className='ml-1'>{student.notes.length}</span>
-                                                        </Button>
-                                                    </CollapsibleTrigger>
-                                                ) : null}
-                                            </TableCell>
-                                        </TableRow>
-                                        <CollapsibleContent asChild>
-                                            <tr className='w-full'>
-                                                <TableCell colSpan={9}>
-                                                    <div className='p-4 bg-muted/50 rounded-md'>
-                                                        <h4 className='font-semibold mb-2'>Öğretmen Görüşleri</h4>
-                                                        <ul className='space-y-2 list-disc list-inside text-sm'>
-                                                        {student.notes.map((note, idx) => (
-                                                            <li key={idx}>
-                                                                <span className='font-semibold'>{format(parseISO(note.date), 'dd MMM yyyy', {locale: tr})}:</span> {note.content}
-                                                            </li>
-                                                        ))}
-                                                        </ul>
-                                                    </div>
+                                <React.Fragment key={student.id}>
+                                    <Collapsible asChild>
+                                        <>
+                                            <TableRow>
+                                                <TableCell className="font-medium">{student.studentNumber}</TableCell>
+                                                <TableCell>{student.firstName} {student.lastName}</TableCell>
+                                                {statusOptions.map(opt => (
+                                                    <TableCell key={opt.value} className="text-center">{student.summary[opt.value as AttendanceStatus]}</TableCell>
+                                                ))}
+                                                <TableCell className="text-right font-bold">{student.totalScore}</TableCell>
+                                                <TableCell className="text-center">
+                                                    {student.notes.length > 0 && (
+                                                        <CollapsibleTrigger asChild>
+                                                            <Button variant="ghost" size="sm">
+                                                                <ChevronDown className="h-4 w-4" />
+                                                                <span className='ml-1'>{student.notes.length}</span>
+                                                            </Button>
+                                                        </CollapsibleTrigger>
+                                                    )}
                                                 </TableCell>
-                                            </tr>
-                                        </CollapsibleContent>
-                                    </>
-                                </Collapsible>
+                                            </TableRow>
+                                            <CollapsibleContent asChild>
+                                                <tr>
+                                                    <TableCell colSpan={9}>
+                                                        <div className='p-4 bg-muted/50 rounded-md'>
+                                                            <h4 className='font-semibold mb-2'>Öğretmen Görüşleri</h4>
+                                                            <ul className='space-y-2 list-disc list-inside text-sm'>
+                                                            {student.notes.map((note, idx) => (
+                                                                <li key={idx}>
+                                                                    <span className='font-semibold'>{format(parseISO(note.date), 'dd MMM yyyy', {locale: tr})}:</span> {note.content}
+                                                                </li>
+                                                            ))}
+                                                            </ul>
+                                                        </div>
+                                                    </TableCell>
+                                                </tr>
+                                            </CollapsibleContent>
+                                        </>
+                                    </Collapsible>
+                                </React.Fragment>
                             ))}
                             </TableBody>
                         </Table>

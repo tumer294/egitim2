@@ -7,6 +7,8 @@ import { useToast } from './use-toast';
 import type { WeeklyScheduleItem, Day, Lesson, ScheduleSettings } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, onSnapshot, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const dayOrder: Day[] = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
@@ -83,14 +85,13 @@ export function useWeeklySchedule(userId?: string) {
              }
         }
         setIsLoading(false);
-    }, (error) => {
-      console.error("Failed to load schedule from Firestore", error);
-      toast({
-        title: "Program Yüklenemedi",
-        description: "Ders programı yüklenirken bir sorun oluştu.",
-        variant: "destructive"
-      });
-      setIsLoading(false);
+    }, async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: scheduleDocRef.path,
+            operation: 'get',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        setIsLoading(false);
     });
 
     return () => unsubscribe();

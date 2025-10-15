@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils';
 import { statusOptions, type DailyRecord, type Student, type ClassInfo } from '@/lib/types';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from '@/components/ui/badge';
+import { useReminders } from '@/hooks/use-reminders';
+import { SmartReminderPopup } from '@/components/smart-reminder-popup';
 
 
 function GunlukOzet() {
@@ -126,6 +128,7 @@ function AnaSayfaPageContent() {
   const { user } = useAuth();
   const { profile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const { classes, isLoading: isClassesLoading } = useClassesAndStudents(user?.uid);
+  const { popupReminder, updateReminder, clearPopupReminder } = useReminders(user?.uid);
   
   const [totalClasses, setTotalClasses] = React.useState(0);
   const [totalStudents, setTotalStudents] = React.useState(0);
@@ -224,6 +227,17 @@ function AnaSayfaPageContent() {
         </div>
         
         <DersProgrami />
+
+        <SmartReminderPopup
+            reminder={popupReminder}
+            onClose={clearPopupReminder}
+            onUpdate={async (id, data) => {
+                await updateReminder(id, data);
+            }}
+            onMarkAsComplete={async (id, isCompleted) => {
+                await updateReminder(id, { isCompleted });
+            }}
+        />
 
       </main>
     </AppLayout>

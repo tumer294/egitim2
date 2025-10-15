@@ -28,6 +28,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 
 type User = {
@@ -80,9 +82,12 @@ function AdminPanelPage() {
       const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
       setUsers(usersData);
       setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching users: ", error);
-      toast({ title: "Hata", description: "Kullanıcı verileri çekilirken bir hata oluştu.", variant: "destructive" });
+    }, async (error) => {
+      const permissionError = new FirestorePermissionError({
+          path: q.path,
+          operation: 'list',
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
       setIsLoading(false);
     });
 

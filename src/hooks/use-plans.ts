@@ -6,6 +6,8 @@ import { useToast } from './use-toast';
 import type { Plan } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 export function usePlans(userId?: string) {
   const { toast } = useToast();
@@ -27,14 +29,13 @@ export function usePlans(userId?: string) {
       const plansData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plan));
       setPlans(plansData);
       setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching plans from Firestore:", error);
-      toast({
-        title: "Planlar Yüklenemedi",
-        description: "Planlarınız veritabanından yüklenirken bir sorun oluştu.",
-        variant: "destructive"
-      });
-      setIsLoading(false);
+    }, async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: q.path,
+            operation: 'list',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+        setIsLoading(false);
     });
 
     return () => unsubscribe();

@@ -105,132 +105,133 @@ export default function LoginPage() {
   }, [user, router, toast]);
 
   return (
-    <>
-    <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-            <div className='flex items-center justify-center gap-2 mb-4'>
-                <GraduationCap className="h-8 w-8 text-primary" />
-                <h1 className='text-2xl font-bold'>SınıfPlanım</h1>
-            </div>
-          <CardTitle className="text-2xl">Giriş Yap</CardTitle>
-          <CardDescription>
-            Devam etmek için e-posta ve şifrenizi girin.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertTitle>Giriş Hatası</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-posta</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="ornek@eposta.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+    <div>
+      <div className="flex h-screen w-full items-center justify-center bg-gradient-to-br from-sky-200 via-orange-200 to-pink-300 p-4">
+        <Card className="w-full max-w-sm bg-white/30 backdrop-blur-lg border-white/50 shadow-2xl">
+          <CardHeader className="text-center text-white">
+              <div className='flex items-center justify-center gap-2 mb-4'>
+                  <GraduationCap className="h-8 w-8 text-white" />
+                  <h1 className='text-2xl font-bold'>SınıfPlanım</h1>
+              </div>
+            <CardTitle className="text-2xl text-slate-800">Giriş Yap</CardTitle>
+            <CardDescription className="text-slate-600">
+              Devam etmek için e-posta ve şifrenizi girin.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Giriş Hatası</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center">
-                      <FormLabel>Şifre</FormLabel>
-                      <Button
-                        type="button"
-                        variant="link"
-                        onClick={() => setIsResetDialogOpen(true)}
-                        className="ml-auto inline-block text-sm underline p-0 h-auto"
-                      >
-                        Şifrenizi mi unuttunuz?
-                      </Button>
-                    </div>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={loading || resetLoading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Giriş Yapılıyor...
-                  </>
-                ) : (
-                  'Giriş Yap'
-                )}
-              </Button>
-            </form>
-          </Form>
-          <div className="mt-4 text-center text-sm">
-            Hesabınız yok mu?{' '}
-            <Link href="/kayit" className="underline">
-              Kaydol
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-
-    <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Şifrenizi Sıfırlayın</DialogTitle>
-                <DialogDescription>
-                    Şifrenizi sıfırlamak için bir bağlantı almak üzere kayıtlı e-posta adresinizi girin.
-                </DialogDescription>
-            </DialogHeader>
-            <Form {...resetForm}>
-                <form onSubmit={resetForm.handleSubmit(handlePasswordReset)} className='space-y-4 py-4'>
-                    <FormField
-                    control={resetForm.control}
-                    name="email"
-                    render={({ field }) => (
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
                     <FormItem>
-                        <FormLabel>E-posta Adresi</FormLabel>
-                        <FormControl>
+                      <FormLabel className="text-slate-700">E-posta</FormLabel>
+                      <FormControl>
                         <Input
-                            type="email"
-                            placeholder="ornek@eposta.com"
-                            {...field}
+                          type="email"
+                          placeholder="ornek@eposta.com"
+                          className="bg-white/50"
+                          {...field}
                         />
-                        </FormControl>
-                        <FormMessage />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
-                    )}
+                  )}
                 />
-                 <DialogFooter>
-                    <DialogClose asChild>
-                        <Button type="button" variant="secondary" disabled={resetLoading}>
-                            İptal
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-center">
+                        <FormLabel className="text-slate-700">Şifre</FormLabel>
+                        <Button
+                          type="button"
+                          variant="link"
+                          onClick={() => setIsResetDialogOpen(true)}
+                          className="ml-auto inline-block text-sm underline p-0 h-auto text-pink-600 hover:text-pink-700"
+                        >
+                          Şifrenizi mi unuttunuz?
                         </Button>
-                    </DialogClose>
-                    <Button type="submit" disabled={resetLoading}>
-                        {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Sıfırlama Maili Gönder
-                    </Button>
-                </DialogFooter>
-                </form>
+                      </div>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••••" className="bg-white/50" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full bg-pink-500 hover:bg-pink-600 text-white shadow-lg" disabled={loading || resetLoading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Giriş Yapılıyor...
+                    </>
+                  ) : (
+                    'Giriş Yap'
+                  )}
+                </Button>
+              </form>
             </Form>
-        </DialogContent>
-    </Dialog>
-    </>
+            <div className="mt-4 text-center text-sm text-slate-600">
+              Hesabınız yok mu?{' '}
+              <Link href="/kayit" className="underline font-semibold text-pink-600 hover:text-pink-700">
+                Kaydol
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Şifrenizi Sıfırlayın</DialogTitle>
+                  <DialogDescription>
+                      Şifrenizi sıfırlamak için bir bağlantı almak üzere kayıtlı e-posta adresinizi girin.
+                  </DialogDescription>
+              </DialogHeader>
+              <Form {...resetForm}>
+                  <form onSubmit={resetForm.handleSubmit(handlePasswordReset)} className='space-y-4 py-4'>
+                      <FormField
+                      control={resetForm.control}
+                      name="email"
+                      render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>E-posta Adresi</FormLabel>
+                          <FormControl>
+                          <Input
+                              type="email"
+                              placeholder="ornek@eposta.com"
+                              {...field}
+                          />
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                      )}
+                  />
+                  <DialogFooter>
+                      <DialogClose asChild>
+                          <Button type="button" variant="secondary" disabled={resetLoading}>
+                              İptal
+                          </Button>
+                      </DialogClose>
+                      <Button type="submit" disabled={resetLoading}>
+                          {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Sıfırlama Maili Gönder
+                      </Button>
+                  </DialogFooter>
+                  </form>
+              </Form>
+          </DialogContent>
+      </Dialog>
+    </div>
   );
 }

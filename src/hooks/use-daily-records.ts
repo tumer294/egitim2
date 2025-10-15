@@ -8,6 +8,8 @@ import { db } from '@/lib/firebase';
 import { 
     collection, onSnapshot, doc, getDocs, writeBatch, deleteDoc, addDoc, updateDoc, query, where, setDoc, collectionGroup
 } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 
 // This hook is for fetching records for a SPECIFIC class, used in GunlukTakipPage
@@ -30,13 +32,12 @@ export function useDailyRecords(userId?: string, classId?: string) {
         const recordsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DailyRecord));
         setRecords(recordsData);
         setIsLoading(false);
-    }, (error) => {
-        console.error("Error fetching records:", error);
-        toast({
-            title: "Kayıtlar Yüklenemedi",
-            description: "Günlük kayıtlar yüklenirken bir sorun oluştu.",
-            variant: "destructive"
-        });
+    }, async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: recordsCollectionRef.path,
+            operation: 'list',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
         setIsLoading(false);
     });
 
@@ -65,7 +66,7 @@ export function useDailyRecords(userId?: string, classId?: string) {
     }
   };
 
-  return { records, isLoading, bulkUpdateRecords };
+  return { records, isLoading, _bulkUpdateRecords: bulkUpdateRecords, bulkUpdateRecords };
 }
 
 // This hook is for fetching ALL records for a user across ALL classes, used in AnaSayfa
@@ -93,13 +94,21 @@ export function useAllRecords(userId?: string) {
             });
             setRecords(recordsData);
             setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching all records:", error);
-            toast({
-                title: "Tüm Kayıtlar Yüklenemedi",
-                description: "Tüm sınıfların kayıtları yüklenirken bir sorun oluştu.",
-                variant: "destructive"
-            });
+        }, async (serverError) => { // Error callback
+            if (serverError.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: 'records (collectionGroup)',
+                    operation: 'list',
+                } satisfies SecurityRuleContext);
+                errorEmitter.emit('permission-error', permissionError);
+            } else {
+                console.error("Error fetching all records:", serverError);
+                toast({
+                    title: "Tüm Kayıtlar Yüklenemedi",
+                    description: "Tüm sınıfların kayıtları yüklenirken bir sorun oluştu.",
+                    variant: "destructive"
+                });
+            }
             setIsLoading(false);
         });
 
@@ -144,6 +153,12 @@ export function useClassesAndStudents(userId?: string) {
                         }
                         return newClasses;
                     });
+                }, async (serverError) => {
+                    const permissionError = new FirestorePermissionError({
+                        path: studentsQuery.path,
+                        operation: 'list',
+                    } satisfies SecurityRuleContext);
+                    errorEmitter.emit('permission-error', permissionError);
                 });
             });
 
@@ -154,9 +169,12 @@ export function useClassesAndStudents(userId?: string) {
             // Return a cleanup function that unsubscribes from all student listeners
             return () => unsubscribers.forEach(unsub => unsub());
 
-        }, (error) => {
-            console.error("Failed to load classes from Firestore", error);
-            toast({ title: "Hata", description: "Sınıf verileri yüklenemedi.", variant: 'destructive' });
+        }, async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: q.path,
+                operation: 'list',
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
             setIsLoading(false);
         });
 

@@ -6,6 +6,8 @@ import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, collection, addDoc, query, where, getDocs, onSnapshot, deleteDoc } from 'firebase/firestore';
 import type { SurveyResult } from '@/lib/types';
 import { useAuth } from './use-auth';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 export function useSurveys() {
     const { toast } = useToast();
@@ -63,13 +65,12 @@ export function useStudentSurveys(studentId: string | null) {
             const surveysData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SurveyResult));
             setSurveys(surveysData);
             setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching student surveys:", error);
-            toast({
-                title: "Anket Sonuçları Yüklenemedi",
-                description: "Öğrencinin anket sonuçları yüklenirken bir hata oluştu.",
-                variant: "destructive",
-            });
+        }, async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: q.path,
+                operation: 'list',
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
             setIsLoading(false);
         });
 
