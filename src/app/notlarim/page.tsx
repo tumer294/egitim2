@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -110,6 +109,8 @@ function NotlarimPageContent() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [colorFilter, setColorFilter] = React.useState('all');
   const [typeFilter, setTypeFilter] = React.useState('all');
+
+  const [viewingImage, setViewingImage] = React.useState<string | null>(null);
 
 
   const filteredNotes = React.useMemo(() => {
@@ -329,6 +330,96 @@ function NotlarimPageContent() {
   const toggleCameraFacingMode = () => {
     setCameraFacingMode(prevMode => prevMode === 'user' ? 'environment' : 'user');
   };
+
+  const ImageViewer = ({ imageUrl, onClose }: { imageUrl: string, onClose: () => void }) => {
+    const [scale, setScale] = React.useState(1);
+    const [position, setPosition] = React.useState({ x: 0, y: 0 });
+    const imgRef = React.useRef<HTMLImageElement>(null);
+
+    const handleWheel = (e: React.WheelEvent) => {
+        e.preventDefault();
+        const scaleAmount = 0.1;
+        let newScale = scale;
+        if (e.deltaY < 0) {
+            newScale = Math.min(scale + scaleAmount, 3);
+        } else {
+            newScale = Math.max(scale - scaleAmount, 0.5);
+        }
+        setScale(newScale);
+    };
+
+    React.useEffect(() => {
+        const img = imgRef.current;
+        if (!img) return;
+
+        let isDragging = false;
+        let startPos = { x: 0, y: 0 };
+
+        const onMouseDown = (e: MouseEvent) => {
+            isDragging = true;
+            startPos = { x: e.clientX - position.x, y: e.clientY - position.y };
+            img.style.cursor = 'grabbing';
+        };
+
+        const onMouseUp = () => {
+            isDragging = false;
+            img.style.cursor = 'grab';
+        };
+
+        const onMouseMove = (e: MouseEvent) => {
+            if (isDragging) {
+                setPosition({
+                    x: e.clientX - startPos.x,
+                    y: e.clientY - startPos.y,
+                });
+            }
+        };
+
+        img.addEventListener('mousedown', onMouseDown);
+        window.addEventListener('mouseup', onMouseUp);
+        window.addEventListener('mousemove', onMouseMove);
+
+        return () => {
+            if(img) {
+              img.removeEventListener('mousedown', onMouseDown);
+            }
+            window.removeEventListener('mouseup', onMouseUp);
+            window.removeEventListener('mousemove', onMouseMove);
+        };
+    }, [position]);
+
+    return (
+        <Dialog open={!!imageUrl} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-none w-screen h-screen">
+                <DialogHeader className='sr-only'>
+                    <DialogTitle>Resim Görüntüleyici</DialogTitle>
+                    <DialogDescription>Not resmini tam ekran görüntüleyin ve yakınlaştırın.</DialogDescription>
+                </DialogHeader>
+                <div className="relative w-full h-full" onWheel={handleWheel}>
+                    <img
+                        ref={imgRef}
+                        src={imageUrl}
+                        alt="Genişletilmiş not resmi"
+                        className="absolute cursor-grab transition-transform"
+                        style={{
+                            top: '50%',
+                            left: '50%',
+                            transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                        }}
+                    />
+                    <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={onClose}
+                        className="absolute top-4 right-4 h-9 w-9 rounded-full bg-black/30 hover:bg-black/50 text-white"
+                    >
+                        <CloseIcon className="h-5 w-5" />
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 
    if (isLoading) {
@@ -581,7 +672,17 @@ function NotlarimPageContent() {
                 className={cn('flex flex-col break-inside-avoid min-w-0 group cursor-pointer transition-shadow hover:shadow-lg', note.color)}
               >
                 <CardHeader className="p-0">
-                   {note.imageUrl && <img src={note.imageUrl} alt="Not resmi" className="rounded-t-lg w-full object-cover max-h-60" />}
+                   {note.imageUrl && (
+                     <img 
+                       src={note.imageUrl} 
+                       alt="Not resmi" 
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         setViewingImage(note.imageUrl!);
+                       }}
+                       className="rounded-t-lg w-full object-cover max-h-60 cursor-zoom-in" 
+                     />
+                   )}
                 </CardHeader>
                 <CardContent className={cn("p-4 flex-grow", !note.title && !note.content && (!note.items || note.items.length === 0) ? 'hidden' : 'block', note.imageUrl && "pt-4")} style={{color: note.textColor}}>
                   <div className="max-h-60 overflow-y-auto no-scrollbar">
@@ -719,6 +820,8 @@ function NotlarimPageContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {viewingImage && <ImageViewer imageUrl={viewingImage} onClose={() => setViewingImage(null)} />}
     </AppLayout>
   );
 }

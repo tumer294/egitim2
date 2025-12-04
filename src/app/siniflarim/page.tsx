@@ -2,8 +2,8 @@
 'use client';
 
 import * as React from 'react';
-import { Plus, Trash2, Pencil, Users, Loader2, Upload } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Plus, Trash2, Pencil, Users, Loader2, Upload, KeyRound, Shield, MoreVertical } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import AppLayout from '@/components/app-layout';
 import { Button } from '@/components/ui/button';
 import type { Student, ClassInfo } from '@/lib/types';
@@ -22,11 +22,27 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+  } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useToast } from '@/hooks/use-toast';
 import { useClassesAndStudents } from '@/hooks/use-daily-records';
 import { EditClassForm } from '@/components/edit-class-form';
 import { useAuth } from '@/hooks/use-auth';
 import AuthGuard from '@/components/auth-guard';
+import { Input } from '@/components/ui/input';
 
 function SiniflarimPageContent() {
   const { toast } = useToast();
@@ -34,6 +50,8 @@ function SiniflarimPageContent() {
   const { classes, addClass, addStudent, addMultipleStudents, updateStudent, deleteStudent, updateClass, deleteClass, isLoading, bulkAddClassesAndStudents } = useClassesAndStudents(user?.uid);
   const [editingStudent, setEditingStudent] = React.useState<Student | null>(null);
   const [editingClass, setEditingClass] = React.useState<ClassInfo | null>(null);
+  const [viewingCode, setViewingCode] = React.useState<{type: 'class' | 'student', code: string} | null>(null);
+
 
   const sortedClasses = React.useMemo(() => {
     return [...classes].sort((a, b) => a.name.localeCompare(b.name));
@@ -158,22 +176,39 @@ function SiniflarimPageContent() {
             <AddClassForm onAddClass={handleAddClass} onBulkImport={handleBulkImport} existingClasses={classes} />
           </div>
         </div>
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {sortedClasses.map((c) => (
-            <Card key={c.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-xl flex items-center gap-2">
-                        {c.name}
-                        <Button variant="ghost" size="icon" className='h-7 w-7' onClick={() => setEditingClass(c)}>
-                            <Pencil className="h-4 w-4" />
+            <Card key={c.id} className="flex flex-col">
+              <CardHeader className="flex-row items-start justify-between">
+                <div>
+                    <CardTitle className="text-xl">{c.name}</CardTitle>
+                    <CardDescription className='flex items-center gap-2 mt-1'>
+                        <Users className="h-4 w-4" />
+                        <span>{c.students.length} Öğrenci</span>
+                    </CardDescription>
+                </div>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2">
+                            <MoreVertical className="h-4 w-4" />
                         </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setViewingCode({type: 'class', code: c.classCode})}>
+                            <Shield className="mr-2 h-4 w-4" />
+                            <span>Sınıf Kodu</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingClass(c)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>Sınıfı Düzenle</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                          <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className='h-7 w-7'>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Sınıfı Sil</span>
+                                </DropdownMenuItem>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -190,72 +225,61 @@ function SiniflarimPageContent() {
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
-                    </CardTitle>
-                    <CardDescription>Sınıf Seviyesi: {c.name.split('/')[0]}</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    <span>{c.students.length} Öğrenci</span>
-                  </div>
-                </div>
+                    </DropdownMenuContent>
+                </DropdownMenu>
               </CardHeader>
-              <CardContent className="p-4 md:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold">Öğrenci Listesi</h4>
-                  <div className="flex items-center gap-2">
-                    <AddStudentForm classId={c.id} onAddStudent={handleAddStudent} existingStudents={c.students} />
-                    <ImportStudentsDialog classId={c.id} onImport={handleBulkAddStudents} existingStudents={c.students} />
-                  </div>
-                </div>
-
-                {c.students.length > 0 ? (
-                  <div className="border rounded-md max-h-80 overflow-y-auto">
-                    <ul className="divide-y divide-border">
-                      {[...c.students].sort((a, b) => a.studentNumber - b.studentNumber).map(student => (
-                          <li key={student.id} className="flex items-center justify-between p-3">
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm font-bold text-primary w-8 text-center">{student.studentNumber}</span>
-                              <span className="font-medium">{student.firstName} {student.lastName}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => setEditingStudent({...student, classId: c.id})}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon">
-                                        <Trash2 className="h-4 w-4 text-destructive" />
+              <CardContent className="p-4 pt-0 flex-grow flex flex-col gap-4">
+                <div className="border rounded-md flex-grow max-h-72 overflow-y-auto">
+                    {c.students.length > 0 ? (
+                        <ul className="divide-y divide-border">
+                        {[...c.students].sort((a, b) => a.studentNumber - b.studentNumber).map(student => (
+                            <li key={student.id} className="flex items-center justify-between p-3 group">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                <span className="text-sm font-bold text-primary w-6 text-center flex-shrink-0">{student.studentNumber}</span>
+                                <span className="font-medium truncate text-sm">{student.firstName} {student.lastName}</span>
+                                </div>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => setViewingCode({type: 'student', code: student.studentCode})}>
+                                        <KeyRound className="h-4 w-4" />
                                     </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Bu işlem geri alınamaz. "{student.firstName} ${student.lastName}" adlı öğrenciyi kalıcı olarak silecektir.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>İptal</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleStudentDelete(c.id, student.id)} className='bg-destructive hover:bg-destructive/90'>
-                                            Sil
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </li>
-                        ))}
-                    </ul>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => setEditingStudent({...student, classId: c.id})}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Bu işlem geri alınamaz. "{student.firstName} ${student.lastName}" adlı öğrenciyi kalıcı olarak silecektir.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>İptal</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleStudentDelete(c.id, student.id)} className='bg-destructive hover:bg-destructive/90'>
+                                                    Sil
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <div className="text-center p-6 text-muted-foreground h-full flex items-center justify-center">
+                            <p className="text-sm">Bu sınıfa henüz öğrenci eklenmemiş.</p>
+                        </div>
+                    )}
+                </div>
+                 <div className="flex w-full items-center gap-2">
+                    <AddStudentForm classId={c.id} onAddStudent={handleAddStudent} existingStudents={c.students} />
+                    <ImportStudentsDialog classId={c.id} onImport={handleBulkAddStudents} isFirstImport={c.students.length === 0} existingStudents={c.students} />
                   </div>
-                ) : (
-                  <div className="text-center p-6 text-muted-foreground border-2 border-dashed rounded-md">
-                    <p>Bu sınıfa henüz öğrenci eklenmemiş.</p>
-                    <div className="mt-4 flex items-center justify-center gap-2">
-                        <AddStudentForm classId={c.id} onAddStudent={handleAddStudent} isFirstStudent={true} existingStudents={[]} />
-                        <ImportStudentsDialog classId={c.id} onImport={handleBulkAddStudents} isFirstImport={true} existingStudents={[]} />
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           ))}
@@ -278,6 +302,25 @@ function SiniflarimPageContent() {
             existingClasses={classes}
           />
         )}
+        <Dialog open={!!viewingCode} onOpenChange={(isOpen) => !isOpen && setViewingCode(null)}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>{viewingCode?.type === 'class' ? 'Sınıf Kodu' : 'Öğrenci Kodu'}</DialogTitle>
+                    <DialogDescription>
+                         {viewingCode?.type === 'class' 
+                            ? 'Öğrencileriniz bu kod ile sınıfa giriş yapabilir.' 
+                            : 'Öğrenciniz bu kod ile sisteme giriş yapabilir.'}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex items-center justify-center p-4">
+                    <Input 
+                        readOnly 
+                        value={viewingCode?.code || ''} 
+                        className="text-2xl font-bold text-center tracking-widest h-12 text-primary bg-background"
+                    />
+                </div>
+            </DialogContent>
+        </Dialog>
       </main>
     </AppLayout>
   );
@@ -291,3 +334,5 @@ export default function SiniflarimPage() {
     </AuthGuard>
   );
 }
+
+    

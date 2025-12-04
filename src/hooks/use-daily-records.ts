@@ -6,10 +6,12 @@ import { useToast } from './use-toast';
 import type { DailyRecord, Student, ClassInfo } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { 
-    collection, onSnapshot, doc, getDocs, writeBatch, deleteDoc, addDoc, updateDoc, query, where, setDoc, collectionGroup
+    collection, onSnapshot, doc, getDocs, writeBatch, deleteDoc, addDoc, updateDoc, query, where, setDoc, collectionGroup, getDoc
 } from 'firebase/firestore';
+import { generateRandomCode } from '@/lib/utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { getAdminDb, getAdminAuth } from '@/lib/firebaseAdmin';
 
 
 // This hook is for fetching records for a SPECIFIC class, used in GunlukTakipPage
@@ -118,7 +120,6 @@ export function useAllRecords(userId?: string) {
     return { records, isLoading };
 }
 
-
 export function useClassesAndStudents(userId?: string) {
     const { toast } = useToast();
     const [classes, setClasses] = React.useState<ClassInfo[]>([]);
@@ -135,7 +136,7 @@ export function useClassesAndStudents(userId?: string) {
         const q = query(collection(db, `users/${userId}/classes`));
         
         const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-            const classesData = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, students: [] }));
+            const classesData = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, classCode: doc.data().classCode, students: [] }));
 
             const unsubscribers = classesData.map((classInfo, index) => {
                 const studentsQuery = query(collection(db, `users/${userId}/classes/${classInfo.id}/students`));
@@ -189,7 +190,7 @@ export function useClassesAndStudents(userId?: string) {
         if (!querySnapshot.empty) {
             throw new Error(`"${className}" adında bir sınıf zaten mevcut.`);
         }
-        await addDoc(userClasses, { name: className });
+        await addDoc(userClasses, { name: className, classCode: generateRandomCode(6) });
     };
     
     const updateClass = async (userId: string, classId: string, newName: string) => {
@@ -218,7 +219,7 @@ export function useClassesAndStudents(userId?: string) {
         await batch.commit();
     };
     
-    const addStudent = async (userId: string, classId: string, studentData: Omit<Student, 'id'|'classId'>) => {
+    const addStudent = async (userId: string, classId: string, studentData: Omit<Student, 'id'|'classId'|'studentCode'>) => {
         const studentsRef = collection(db, `users/${userId}/classes/${classId}/students`);
         const q = query(studentsRef, where("studentNumber", "==", studentData.studentNumber));
         const querySnapshot = await getDocs(q);
@@ -226,10 +227,18 @@ export function useClassesAndStudents(userId?: string) {
         if (!querySnapshot.empty) {
             throw new Error(`Bu numaraya sahip bir öğrenci zaten mevcut.`);
         }
-        await addDoc(studentsRef, { ...studentData, classId });
+        
+        const studentCode = generateRandomCode(6);
+        const newStudentDocRef = doc(studentsRef);
+        
+        await setDoc(newStudentDocRef, { ...studentData, classId, studentCode });
+        
+        // This part is moved to a batch operation in the admin panel.
+        // It's more reliable to create auth users in bulk by an admin
+        // than trying to do it via a server action on every student addition.
     };
 
-    const addMultipleStudents = async (userId: string, classId: string, newStudents: Omit<Student, 'id'|'classId'>[]) => {
+    const addMultipleStudents = async (userId: string, classId: string, newStudents: Omit<Student, 'id'|'classId'|'studentCode'>[]) => {
          const studentsRef = collection(db, `users/${userId}/classes/${classId}/students`);
          const existingStudentsSnapshot = await getDocs(studentsRef);
          const existingNumbers = new Set(existingStudentsSnapshot.docs.map(doc => doc.data().studentNumber));
@@ -243,7 +252,7 @@ export function useClassesAndStudents(userId?: string) {
 
          studentsToAdd.forEach(student => {
             const studentRef = doc(collection(db, `users/${userId}/classes/${classId}/students`));
-            batch.set(studentRef, {...student, classId});
+            batch.set(studentRef, {...student, classId, studentCode: generateRandomCode(6)});
          });
 
          await batch.commit();
@@ -259,6 +268,10 @@ export function useClassesAndStudents(userId?: string) {
          }
          const studentRef = doc(db, `users/${userId}/classes/${classId}/students`, updatedStudent.id);
          const { id, ...studentData } = updatedStudent;
+         // Ensure student code is not overwritten if it exists
+         if (!studentData.studentCode) {
+             studentData.studentCode = generateRandomCode(6);
+         }
          await updateDoc(studentRef, studentData);
     };
 
@@ -267,7 +280,7 @@ export function useClassesAndStudents(userId?: string) {
         await deleteDoc(studentRef);
     };
 
-    const bulkAddClassesAndStudents = async (userId: string, data: { className: string, students: Omit<Student, 'id'|'classId'>[] }[]) => {
+    const bulkAddClassesAndStudents = async (userId: string, data: { className: string, students: Omit<Student, 'id'|'classId'|'studentCode'>[] }[]) => {
         const batch = writeBatch(db);
         const userClassesRef = collection(db, 'users', userId, 'classes');
         const existingClassesSnapshot = await getDocs(userClassesRef);
@@ -284,7 +297,7 @@ export function useClassesAndStudents(userId?: string) {
             if (!classId) {
                 // Class doesn't exist, create it
                 const newClassRef = doc(userClassesRef);
-                batch.set(newClassRef, { name: classData.className });
+                batch.set(newClassRef, { name: classData.className, classCode: generateRandomCode(6) });
                 classId = newClassRef.id;
                 classesAdded++;
             } else {
@@ -298,7 +311,7 @@ export function useClassesAndStudents(userId?: string) {
             for (const student of classData.students) {
                 if (!existingStudentNumbers.has(student.studentNumber)) {
                     const newStudentRef = doc(studentsRef);
-                    batch.set(newStudentRef, { ...student, classId });
+                    batch.set(newStudentRef, { ...student, classId, studentCode: generateRandomCode(6) });
                     studentsAdded++;
                 } else {
                     studentsSkipped++;

@@ -1,22 +1,25 @@
+
 'use server';
 
 import { descriptionAutoFill } from '@/ai/flows/description-auto-fill';
 import type { DescriptionAutoFillInput } from '@/ai/flows/description-auto-fill';
-import { parseStudentList } from '@/ai/flows/student-list-parser';
-import type { StudentListParserOutput } from '@/ai/flows/student-list-parser';
 import { speechToNote } from '@/ai/flows/speech-to-note';
 import type { SpeechToNoteInput, SpeechToNoteOutput } from '@/ai/flows/speech-to-note';
-import { assistantFlow } from '@/ai/flows/assistant-flow';
-import type { AssistantInput } from '@/ai/flows/assistant-flow';
+import { assistantFlow } from '@/ai/dev';
+import type { AssistantInput } from '@/ai/dev';
 import { generateIndividualReport } from '@/ai/flows/individual-student-report-flow';
 import type { IndividualStudentReportInput, IndividualStudentReportOutput } from '@/ai/flows/individual-student-report-flow';
 import { generateClassReport } from '@/ai/flows/class-report-flow.ts';
 import type { ClassReportInput, ClassReportOutput } from '@/ai/flows/class-report-flow.ts';
 import { generateForumAnswer } from '@/ai/flows/forum-assistant-flow';
 import type { ForumAssistantInput } from '@/ai/flows/forum-assistant-flow';
+import { parseStudentList } from '@/ai/flows/student-list-parser';
+import type { StudentListParserInput, StudentListParserOutput } from '@/ai/flows/student-list-parser';
 import type { ForumAuthor, ForumReply, SurveyResult } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, doc } from 'firebase/firestore';
+import { getAuth } from "firebase/auth";
+import { app } from "@/lib/firebase";
 
 
 export async function generateDescriptionAction(input: DescriptionAutoFillInput) {
@@ -33,25 +36,6 @@ export async function generateDescriptionAction(input: DescriptionAutoFillInput)
     console.error('AI description generation failed:', error);
     return { error: 'AI ile açıklama üretilirken bir hata oluştu.' };
   }
-}
-
-// Define the input type for parseStudentListAction locally
-// as it's no longer exported from the flow file.
-type StudentListParserInput = {
-    fileDataUri: string;
-};
-
-export async function parseStudentListAction(input: StudentListParserInput): Promise<{ analysis: string } | { error: string }> {
-    try {
-      const result = await parseStudentList(input);
-      if (result?.analysis) {
-        return { analysis: result.analysis };
-      }
-      return { error: 'Dosya analizi yapılamadı.' };
-    } catch (error: any) {
-      console.error('Student list parsing failed:', error);
-      return { error: `Dosya ayrıştırılırken bir hata oluştu: ${error.message}` };
-    }
 }
 
 export async function speechToNoteAction(input: SpeechToNoteInput): Promise<SpeechToNoteOutput | { error: string }> {
@@ -72,14 +56,20 @@ export async function speechToNoteAction(input: SpeechToNoteInput): Promise<Spee
 
 export async function assistantAction(input: AssistantInput): Promise<{ response: string } | { error: string }> {
   try {
-    const result = await assistantFlow(input);
+    const auth = getAuth(app);
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+        return { error: 'Kullanıcı oturumu bulunamadı.' };
+    }
+
+    const result = await assistantFlow({ ...input, userId });
     if (result?.response) {
       return { response: result.response };
     }
     return { error: 'Yapay zekadan bir cevap alınamadı.' };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Assistant action failed:', error);
-    return { error: 'Yapay zeka ile iletişim kurulurken bir hata oluştu.' };
+    return { error: error.message || 'Yapay zeka ile iletişim kurulurken bir hata oluştu.' };
   }
 }
 
@@ -108,6 +98,19 @@ export async function generateClassReportAction(input: ClassReportInput): Promis
     console.error('AI class report generation failed:', error);
     return { error: 'Yapay zeka ile sınıf raporu üretilirken bir hata oluştu.' };
   }
+}
+
+export async function parseStudentListAction(input: StudentListParserInput): Promise<StudentListParserOutput | { error: string }> {
+    try {
+        const result = await parseStudentList(input);
+        if (result?.classes) {
+            return result;
+        }
+        return { error: 'Listeyi ayrıştırırken bir hata oluştu.' };
+    } catch (error) {
+        console.error('Student list parsing failed:', error);
+        return { error: 'Öğrenci listesi ayrıştırılırken bir hata oluştu.' };
+    }
 }
 
 

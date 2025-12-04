@@ -6,7 +6,7 @@
 @tailwind utilities;
 
 @layer base {
-  [data-theme='light'] {
+  :root {
     --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -20,7 +20,7 @@
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --accent: 30 100% 65%; /* Bright Orange for accent */
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -55,8 +55,8 @@
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 30 100% 70%; /* Lighter bright orange */
+    --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
@@ -286,33 +286,63 @@
   }
 
   [data-theme='ultra'] {
-    --background: 225 20% 12%; /* Dark Blue-Gray */
-    --foreground: 210 40% 98%;
-    --card: 225 20% 17%;
-    --card-foreground: 210 40% 98%;
-    --card-shadow: 0 10px 25px -5px hsl(0 0% 0% / 0.3), 0 8px 10px -6px hsl(0 0% 0% / 0.3);
-    --popover: 225 20% 10%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 290 90% 65%; /* Electric Magenta */
+    --background: 220 13% 97%;      /* #F5F8FA */
+    --foreground: 225 25% 15%;      /* #181C32 */
+    --card: 0 0% 100%;               /* #FFFFFF */
+    --card-foreground: 225 25% 15%;
+    --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 25% 15%;
+    --primary: 204 98% 48%;          /* #009EF7 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 225 20% 25%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 225 20% 25%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 170 100% 50%; /* Bright Cyan */
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 80% 60%;
+    --secondary: 220 16% 93%;        /* #E5E7EB */
+    --secondary-foreground: 225 25% 15%;
+    --muted: 220 16% 93%;
+    --muted-foreground: 225 15% 40%;
+    --accent: 204 98% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 225 20% 25%;
-    --input: 225 20% 22%;
-    --ring: 290 90% 65%;
+    --border: 220 13% 91%;          /* #E9EDF1 */
+    --input: 220 13% 91%;
+    --ring: 204 98% 48%;
     --radius: 0.75rem;
-    --sidebar-background: 225 20% 10%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-accent: 225 20% 17%;
-    --sidebar-accent-foreground: 290 90% 65%;
-    --sidebar-primary: 290 90% 65%;
+    --sidebar-background: 240 18% 15%;      /* #1E1E2D */
+    --sidebar-foreground: 240 6% 83%;       /* #A1A5B7 */
+    --sidebar-accent: 240 18% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-primary: 204 98% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
+  }
+
+  [data-theme='glass'] {
+    --background: 220 30% 96%;
+    --foreground: 215 28% 17%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 17%;
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 28% 17%;
+    --primary: 231 84% 63%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 16% 93%;
+    --secondary-foreground: 215 28% 17%;
+    --muted: 220 16% 96%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 91% 96%;
+    --accent-foreground: 222 75% 56%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 16% 93%;
+    --input: 240 6% 96%;
+    --ring: 231 84% 63%;
+    --radius: 0.75rem;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 28% 17%;
+    --sidebar-accent: 220 16% 96%;
+    --sidebar-accent-foreground: 215 28% 17%;
+    --sidebar-primary: 217 91% 96%;
+    --sidebar-primary-foreground: 222 75% 56%;
   }
 }
 
@@ -323,6 +353,9 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'PT Sans', sans-serif;
+  }
+  [data-theme='glass'] body {
+    background-color: #f5f7fa;
   }
 }
 

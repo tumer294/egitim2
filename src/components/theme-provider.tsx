@@ -9,7 +9,7 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
     <NextThemesProvider 
         {...props}
         attribute="data-theme"
-        themes={['light', 'dark', 'ocean', 'forest', 'sunset', 'mint', 'matrix', 'rose', 'premium', 'ultra', 'system']}
+        themes={['light', 'dark', 'ocean', 'forest', 'sunset', 'mint', 'matrix', 'rose', 'premium', 'ultra', 'glass', 'system']}
     >
         {children}
     </NextThemesProvider>

@@ -32,6 +32,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Plan } from '@/lib/types';
+import { getYear, getMonth, set, addWeeks, startOfWeek, endOfWeek, format as formatDate } from 'date-fns';
+import { tr } from 'date-fns/locale';
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 const ACCEPTED_FILE_TYPES_DOC = [
@@ -130,21 +132,72 @@ export function UploadPlanForm({ onAddPlan, isFirstPlan = false }: UploadPlanFor
     }
   };
   
+  const getAcademicYearSchedule = () => {
+    const now = new Date();
+    const currentYear = getYear(now);
+    const september = 8; // September is 8 (0-indexed is 8)
+  
+    // Academic year starts in September. If current month is before September, academic year started last year.
+    const academicYearStartYear = getMonth(now) >= september ? currentYear : currentYear - 1;
+  
+    // Find the first day of September for that academic year
+    const firstOfSeptember = new Date(academicYearStartYear, september, 1);
+  
+    // Find the first Monday of September
+    let firstMonday = new Date(firstOfSeptember);
+    let dayOfWeek = firstMonday.getDay();
+    let dateOffset = (dayOfWeek === 1) ? 0 : (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);
+    firstMonday.setDate(firstMonday.getDate() + dateOffset);
+
+    // The second Monday is the start of the academic year
+    const secondMonday = new Date(firstMonday);
+    secondMonday.setDate(firstMonday.getDate() + 7);
+  
+    const schedule = [];
+    let currentWeekStart = secondMonday;
+  
+    for (let i = 1; i <= 36; i++) {
+      schedule.push({
+        ay: formatDate(currentWeekStart, 'MMMM', { locale: tr }),
+        hafta: `${i}. Hafta`,
+      });
+      currentWeekStart = addWeeks(currentWeekStart, 1);
+    }
+    
+    schedule.push({ ay: 'Haziran', hafta: 'Yedek Hafta' });
+  
+    return schedule;
+  };
+
   const handleDownloadTemplate = () => {
-    const headers = [
-      "AY",
-      "HAFTA",
-      "SAAT",
-      "ÜNİTE",
-      "KONU (ALT ÖĞRENME ALANI)",
-      "KAZANIM",
-      "AÇIKLAMALAR",
-      "YÖNTEM VE TEKNİKLER",
-      "ÖLÇME VE DEĞERLENDİRME",
-      "BELİRLİ GÜN VE HAFTALAR",
-      "DİĞER"
+    const schedule = getAcademicYearSchedule();
+    const headers = ["Hafta", "Saat", "Ünite", "Konu", "Kazanım", "Yöntem ve Teknikler", "Ölçme ve Değerlendirme", "Açıklamalar"];
+    
+    const data = schedule.map(item => ({
+      'Hafta': item.hafta,
+      'Saat': '',
+      'Ünite': '',
+      'Konu': '',
+      'Kazanım': '',
+      'Yöntem ve Teknikler': '',
+      'Ölçme ve Değerlendirme': '',
+      'Açıklamalar': ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+
+    // Set column widths
+    ws['!cols'] = [
+        { wch: 15 }, // Hafta
+        { wch: 10 }, // Saat
+        { wch: 25 }, // Ünite
+        { wch: 30 }, // Konu
+        { wch: 40 }, // Kazanım
+        { wch: 30 }, // Yöntem ve Teknikler
+        { wch: 30 }, // Ölçme ve Değerlendirme
+        { wch: 40 }, // Açıklamalar
     ];
-    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Yıllık Plan');
     XLSX.writeFile(wb, 'yillik_plan_sablonu.xlsx');

@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -7,11 +6,8 @@ import { db } from '@/lib/firebase';
 import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import { useAuth } from './use-auth';
 import type { UserProfile, UserRole } from '@/lib/types';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
-
-const defaultProfile: Omit<UserProfile, 'email' | 'workplace' | 'hometown' | 'role'> = {
+const defaultProfile: Omit<UserProfile, 'email' | 'workplace' | 'hometown' | 'role' | 'tier' | 'aiUsageCount' | 'tierStartDate'> = {
   fullName: 'Yeni Kullanıcı',
   title: 'Öğretmen',
   branch: 'Belirtilmemiş',
@@ -47,11 +43,17 @@ export function useUserProfile(userId?: string) {
             const userRole: UserRole = user.email === ADMIN_EMAIL ? 'admin' : 'beklemede';
             
             const newProfile: UserProfile = {
-              ...defaultProfile,
+              fullName: user.displayName || defaultProfile.fullName,
+              title: defaultProfile.title,
               email: user.email,
+              branch: defaultProfile.branch,
               workplace: 'Okul Belirtilmemiş',
               hometown: 'Memleket Belirtilmemiş',
+              avatarUrl: user.photoURL || defaultProfile.avatarUrl,
               role: userRole,
+              tier: 'free',
+              aiUsageCount: 0,
+              theme: defaultProfile.theme
             };
             
             await setDoc(profileDocRef, newProfile);
@@ -68,17 +70,18 @@ export function useUserProfile(userId?: string) {
         }
       }
       setIsLoading(false);
-    }, async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-            path: profileDocRef.path,
-            operation: 'get',
-        } satisfies SecurityRuleContext);
-        errorEmitter.emit('permission-error', permissionError);
-        setIsLoading(false);
+    }, (error) => {
+      console.error("Error fetching user profile:", error);
+      toast({
+        title: 'Profil Yüklenemedi',
+        description: 'Kullanıcı profili yüklenirken bir sorun oluştu.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, [userId, user?.email, toast]);
+  }, [userId, user, toast]);
 
   const updateProfile = async (updatedProfile: UserProfile) => {
     if (!userId) return;

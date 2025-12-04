@@ -67,7 +67,7 @@ import {
   } from "@/components/ui/collapsible"
 import { Bar, BarChart as RechartsBarChart, Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
-import { format, startOfMonth, isWithinInterval, eachDayOfInterval, parseISO, startOfWeek, endOfWeek, subMonths, endOfMonth, subDays } from 'date-fns';
+import { format, startOfMonth, isWithinInterval, eachDayOfInterval, parseISO, startOfWeek, endOfWeek, subMonths, endOfMonth, subDays, subYears } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import jsPDF from 'jspdf';
@@ -1123,12 +1123,12 @@ function RaporlarPageContent() {
                                     <Button variant="ghost">Hızlı Seç</Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="center">
-                                    <DropdownMenuItem onClick={() => setDateRange({ from: new Date(), to: new Date() })}>Bugün</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => { const today = new Date(); const yesterday = subDays(today, 1); setDateRange({ from: yesterday, to: yesterday }); }}>Dün</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setDateRange({ from: subDays(new Date(), 6), to: new Date() })}>Son 7 Gün</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setDateRange({ from: subDays(new Date(), 29), to: new Date() })}>Son 30 Gün</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) })}>Bu Ay</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => { const prevMonth = subMonths(new Date(), 1); setDateRange({ from: startOfMonth(prevMonth), to: endOfMonth(prevMonth) }); }}>Geçen Ay</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setDateRange({ from: subYears(new Date(), 1), to: new Date() })}>Son 1 Yıl</DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>

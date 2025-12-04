@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -8,8 +9,9 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // LIST: Admins can list all users for the admin panel.
-      allow list: if isAdmin(request.auth.uid);
+      // LIST: Admins can list all users. Unauthenticated users can list teachers for student login.
+      allow list: if (isAdmin(request.auth.uid)) || 
+                     (request.auth == null && request.query.keys().hasOnly(['where']) && request.query.where[0][0] == 'role' && request.query.where[0][1] == '==');
       // READ: A user can read their own profile, or an admin can read any profile.
       allow read: if request.auth.uid == userId || isAdmin(request.auth.uid);
       // WRITE: A user can update their own profile, or an admin can update any profile (to change roles).
@@ -17,8 +19,30 @@ service cloud.firestore {
       // CREATE: Any authenticated user can create their own user document.
       allow create: if request.auth.uid != null;
     }
+    
+    match /users/{teacherId}/classes/{classId} {
+      // Teachers can read their own class documents
+      allow get: if request.auth != null && request.auth.uid == teacherId;
+      // Allow unauthenticated users to query the classes collection to find a class by its code.
+      allow list: if request.auth == null &&
+                     request.query.keys().hasOnly(['where']) &&
+                     request.query.where[0][0] == 'classCode' &&
+                     request.query.where[0][1] == '==';
+    }
+    
+    match /users/{teacherId}/classes/{classId}/students/{studentId} {
+        // Teachers can manage their own students
+        allow read, write, create, delete: if request.auth != null && request.auth.uid == teacherId;
+        // Allow unauthenticated users (students) to query the 'students' subcollection
+        // of a specific class if they know the class code. This is needed for the 2-step login.
+        allow list: if request.auth == null &&
+                     request.query.keys().hasOnly(['where']) &&
+                     request.query.where[0][0] == 'studentCode' &&
+                     request.query.where[0][1] == '==';
+    }
 
-    // Users can manage their own subcollections fully.
+
+    // Users can manage their own other subcollections fully.
     match /users/{userId}/{subcollection}/{docId} {
       allow read, write, create, delete: if request.auth.uid == userId;
     }

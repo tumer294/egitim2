@@ -1,35 +1,78 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Other rules can go here
+    
+    function isAdmin(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin';
+    }
 
-    // This rule allows a user to manage documents under their own user ID.
-    // It's the foundation for user-specific data.
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    match /users/{userId} {
+      // LIST: Admins can list all users. Unauthenticated server requests can list teachers for student login/registration.
+      allow list: if (isAdmin(request.auth.uid)) || 
+                     (request.auth == null && request.query.keys().hasOnly(['where']) && request.query.where[0][0] == 'role' && request.query.where[0][1] == '==');
+      // READ: A user can read their own profile, or an admin can read any profile.
+      allow read: if request.auth.uid == userId || isAdmin(request.auth.uid);
+      // WRITE: A user can update their own profile, or an admin can update any profile (to change roles).
+      allow write: if request.auth.uid == userId || isAdmin(request.auth.uid);
+      // CREATE: Any authenticated user can create their own user document.
+      allow create: if request.auth.uid != null;
     }
     
-    // Explicitly allow users to create documents in their own 'surveys' subcollection.
-    // This is more specific and reliable than relying on the wildcard above for creation.
-    match /users/{userId}/surveys/{surveyId} {
-        allow create: if request.auth != null && request.auth.uid == userId;
+    match /users/{teacherId}/classes/{classId} {
+      // Teachers can manage their own class documents fully.
+      allow read, write, create, delete: if request.auth != null && request.auth.uid == teacherId;
+      // Allow unauthenticated users to query the classes collection to find a class by its code.
+      allow list: if request.auth == null &&
+                     request.query.keys().hasOnly(['where']) &&
+                     request.query.where[0][0] == 'classCode' &&
+                     request.query.where[0][1] == '==';
+    }
+    
+    match /users/{teacherId}/classes/{classId}/students/{studentId} {
+        // Teachers can manage their own students
+        allow read, write, create, delete: if request.auth != null && request.auth.uid == teacherId;
+        // Allow unauthenticated users (students) to query the 'students' subcollection
+        // of a specific class if they know the class code. This is needed for the 2-step login.
+        allow list: if request.auth == null &&
+                     request.query.keys().hasOnly(['where']) &&
+                     request.query.where[0][0] == 'studentCode' &&
+                     request.query.where[0][1] == '==';
     }
 
-    // This rule allows any authenticated user to read from the 'forum' collection.
+
+    // Users can manage their own other subcollections fully.
+    match /users/{userId}/{subcollection}/{docId} {
+      allow read, write, create, delete: if request.auth.uid == userId;
+    }
+    
+    // Forum is public to read for any authenticated user.
     match /forum/{postId} {
       allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null && (request.auth.token.admin == true || request.resource.data.author.uid == request.auth.uid);
+      // Write/update/delete only by the author or an admin.
+      allow write, update, delete: if request.auth.uid == resource.data.author.uid || isAdmin(request.auth.uid);
+      
+      // Replies subcollection
+      match /replies/{replyId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null; // Any authenticated user can reply
+        allow update, delete: if request.auth.uid == resource.data.author.uid || isAdmin(request.auth.uid);
+
+        // Comments sub-subcollection
+        match /comments/{commentId} {
+           allow read: if request.auth != null;
+           allow create: if request.auth != null; // Any authenticated user can comment
+           allow update, delete: if request.auth.uid == resource.data.author.uid || isAdmin(request.auth.uid);
+        }
+      }
     }
     
-    // This rule allows users to manage replies and comments if they are authenticated.
-    match /forum/{postId}/replies/{replyId}/{document=**} {
-       allow read, write: if request.auth != null;
-    }
-
-    // Notifications can be read by any authenticated user, but only created/deleted by an admin.
+    // Notifications are public to read for any authenticated user.
     match /notifications/{notificationId} {
         allow read: if request.auth != null;
-        allow create, delete: if request.auth.token.admin == true;
+        // Only admins can create/write/delete notifications.
+        allow write, create, delete: if isAdmin(request.auth.uid);
     }
   }
 }

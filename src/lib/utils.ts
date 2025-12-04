@@ -7,6 +7,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export const generateRandomCode = (length: number): string => {
+    return Math.random().toString(36).substring(2, 2 + length).toUpperCase();
+};
+
 /**
  * Calculates the academic week number based on a given date.
  * Assumes the academic year starts on the second Monday of September.
@@ -17,23 +21,23 @@ export function getAcademicWeek(date: Date): number {
   const currentYear = getYear(date);
   const september = 8; // September is month 8 (0-indexed)
 
-  // Find the first day of September for the current or previous academic year start
+  // Determine the start year of the current academic year
   const academicYearStartYear = getMonth(date) >= september ? currentYear : currentYear - 1;
   const firstOfSeptember = new Date(academicYearStartYear, september, 1);
+  firstOfSeptember.setHours(0, 0, 0, 0);
 
   // Find the first Monday of September
   let firstMonday = new Date(firstOfSeptember);
-  firstMonday.setDate(firstOfSeptember.getDate() + (1 - firstOfSeptember.getDay() + 7) % 7);
-  if (getDate(firstMonday) > 7) { // If first monday is after the 7th, the previous week's monday was the first.
-      firstMonday.setDate(firstMonday.getDate() - 7);
-  }
-
+  // getDay() returns 0 for Sunday, 1 for Monday, etc. We want to find the first Monday.
+  const dayOfWeek = firstOfSeptember.getDay();
+  const dateOffset = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);
+  firstMonday.setDate(1 + dateOffset);
 
   // The second Monday of September is the start of the academic year
   const secondMonday = new Date(firstMonday);
   secondMonday.setDate(firstMonday.getDate() + 7);
 
-  // If the given date is before the start of the academic year, it's considered week 1
+  // If the given date is before the start of this academic year, it's considered week 1
   if (date < secondMonday) {
     return 1;
   }

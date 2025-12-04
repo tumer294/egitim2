@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -52,14 +53,21 @@ type Answers = { [key: number]: number };
 
 function OgrenmeStilleriPageContent() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const studentId = searchParams.get('studentId');
   const classId = searchParams.get('classId');
   const { toast } = useToast();
   const { saveSurveyResult, isLoading: isSaving } = useSurveys();
+  const [isStudentSession, setIsStudentSession] = React.useState(false);
   
   const [answers, setAnswers] = React.useState<Answers>({});
   const [isSurveyComplete, setIsSurveyComplete] = React.useState(false);
   const [dominantStyle, setDominantStyle] = React.useState<keyof typeof learningStyles | null>(null);
+
+  React.useEffect(() => {
+    const studentAuth = sessionStorage.getItem('studentAuth');
+    setIsStudentSession(!!studentAuth);
+  }, []);
 
   const handleAnswerChange = (questionIndex: number, value: string) => {
     setAnswers(prev => ({ ...prev, [questionIndex]: parseInt(value) }));
@@ -107,9 +115,30 @@ function OgrenmeStilleriPageContent() {
   const answeredCount = Object.keys(answers).length;
   const progress = (answeredCount / questions.length) * 100;
   
+  const BackLink = () => {
+    const href = isStudentSession ? `/ogrenci/${studentId}` : '/anket';
+    return (
+        <Link href={href} className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4">
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            {isStudentSession ? 'Öğrenci Paneline Geri Dön' : 'Öğrenci Seçimine Geri Dön'}
+        </Link>
+    );
+  };
+  
   if (isSurveyComplete && dominantStyle) {
     const resultInfo = learningStyles[dominantStyle];
     const Icon = resultInfo.icon;
+    const FinishButton = () => {
+        const href = isStudentSession ? `/ogrenci/${studentId}` : '/anket';
+        return (
+            <Link href={href}>
+                <Button>
+                    <CheckCircle className="h-4 w-4 mr-2"/>
+                    Tamamla
+                </Button>
+            </Link>
+        )
+    };
     
     return (
         <AppLayout>
@@ -129,12 +158,7 @@ function OgrenmeStilleriPageContent() {
                     </Card>
 
                     <div className='flex justify-center mt-6'>
-                        <Link href="/anket">
-                          <Button>
-                              <CheckCircle className="h-4 w-4 mr-2"/>
-                              Tamamla
-                          </Button>
-                        </Link>
+                        <FinishButton />
                     </div>
                 </div>
              </main>
@@ -145,10 +169,7 @@ function OgrenmeStilleriPageContent() {
   return (
     <AppLayout>
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <Link href="/anket" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4">
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Öğrenci Seçimine Geri Dön
-        </Link>
+        <BackLink />
         <div className="flex items-center justify-between space-y-2">
             <div>
                 <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
@@ -227,10 +248,19 @@ function OgrenmeStilleriPageContent() {
   );
 }
 
+const PageWrapper = () => {
+    const { user } = useAuth();
+    const isStudent = !!sessionStorage.getItem('studentAuth');
+    if (user || isStudent) {
+        return <OgrenmeStilleriPageContent />
+    }
+    return <AuthGuard><OgrenmeStilleriPageContent /></AuthGuard>
+}
+
 export default function OgrenmeStilleriPage() {
     return (
-        <AuthGuard>
-            <OgrenmeStilleriPageContent />
-        </AuthGuard>
+        <React.Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>}>
+            <PageWrapper />
+        </React.Suspense>
     )
 }

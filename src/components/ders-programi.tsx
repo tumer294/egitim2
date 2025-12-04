@@ -509,4 +509,3 @@ export default function DersProgrami() {
     </div>
   );
 }
-

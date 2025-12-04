@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -150,14 +151,21 @@ type Answers = { [key: number]: number };
 
 function HollandMeslekEnvanteriPageContent() {
     const searchParams = useSearchParams();
+    const { user } = useAuth();
     const studentId = searchParams.get('studentId');
     const classId = searchParams.get('classId');
     const { toast } = useToast();
     const { saveSurveyResult, isLoading: isSaving } = useSurveys();
+    const [isStudentSession, setIsStudentSession] = React.useState(false);
 
     const [answers, setAnswers] = React.useState<Answers>({});
     const [isSurveyComplete, setIsSurveyComplete] = React.useState(false);
     const [results, setResults] = React.useState<any[]>([]);
+
+    React.useEffect(() => {
+        const studentAuth = sessionStorage.getItem('studentAuth');
+        setIsStudentSession(!!studentAuth);
+    }, []);
 
     const handleAnswerChange = (questionIndex: number, value: string) => {
         setAnswers(prev => ({ ...prev, [questionIndex]: parseInt(value) }));
@@ -216,10 +224,31 @@ function HollandMeslekEnvanteriPageContent() {
 
     const answeredCount = Object.keys(answers).length;
     const progress = (answeredCount / questions.length) * 100;
+    
+    const BackLink = () => {
+        const href = isStudentSession ? `/ogrenci/${studentId}` : '/anket';
+        return (
+            <Link href={href} className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4">
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                {isStudentSession ? 'Öğrenci Paneline Geri Dön' : 'Öğrenci Seçimine Geri Dön'}
+            </Link>
+        );
+    };
 
     if (isSurveyComplete) {
         const topThree = results.slice(0, 3);
         const hollandCode = topThree.map(r => r.name.charAt(0)).join('');
+        const FinishButton = () => {
+            const href = isStudentSession ? `/ogrenci/${studentId}` : '/anket';
+            return (
+                <Link href={href}>
+                    <Button>
+                        <CheckCircle className="h-4 w-4 mr-2"/>
+                        Tamamla
+                    </Button>
+                </Link>
+            )
+        };
 
         return (
             <AppLayout>
@@ -285,12 +314,7 @@ function HollandMeslekEnvanteriPageContent() {
                     </div>
 
                     <div className='flex justify-center mt-6'>
-                       <Link href="/anket">
-                          <Button>
-                              <CheckCircle className="h-4 w-4 mr-2"/>
-                              Tamamla
-                          </Button>
-                        </Link>
+                       <FinishButton />
                     </div>
                  </main>
             </AppLayout>
@@ -300,10 +324,7 @@ function HollandMeslekEnvanteriPageContent() {
     return (
         <AppLayout>
           <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-            <Link href="/anket" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4">
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Öğrenci Seçimine Geri Dön
-            </Link>
+            <BackLink />
             <div className="flex items-center justify-between space-y-2">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
@@ -382,10 +403,19 @@ function HollandMeslekEnvanteriPageContent() {
     );
 }
 
+const PageWrapper = () => {
+    const { user } = useAuth();
+    const isStudent = !!sessionStorage.getItem('studentAuth');
+    if (user || isStudent) {
+        return <HollandMeslekEnvanteriPageContent />
+    }
+    return <AuthGuard><HollandMeslekEnvanteriPageContent /></AuthGuard>
+}
+
 export default function HollandMeslekEnvanteriPage() {
     return (
-        <AuthGuard>
-            <HollandMeslekEnvanteriPageContent />
-        </AuthGuard>
+        <React.Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>}>
+            <PageWrapper />
+        </React.Suspense>
     )
 }

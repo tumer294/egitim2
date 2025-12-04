@@ -131,12 +131,33 @@ function PlanlarimPageContent() {
     link.click();
     document.body.removeChild(link);
   };
+  
+  const dataURIToBlob = (dataURI: string): Blob | null => {
+    try {
+        const splitDataURI = dataURI.split(',');
+        const byteString = splitDataURI[0].indexOf('base64') >= 0 ? atob(splitDataURI[1]) : decodeURI(splitDataURI[1]);
+        const mimeString = splitDataURI[0].split(':')[1].split(';')[0];
+
+        const ia = new Uint8Array(byteString.length);
+        for (let i = 0; i < byteString.length; i++)
+            ia[i] = byteString.charCodeAt(i);
+
+        return new Blob([ia], { type: mimeString });
+    } catch (error) {
+        console.error("Error converting Data URI to Blob:", error);
+        toast({ title: 'Hata', description: 'Dosya verisi okunurken bir hata oluştu.', variant: 'destructive' });
+        return null;
+    }
+  }
+
 
   const viewFile = async (plan: Plan) => {
     const week = getAcademicWeek(new Date());
+    
+    const blob = dataURIToBlob(plan.fileDataUrl);
+    if (!blob) return;
 
     if (plan.fileType.includes('sheet') || plan.fileType.includes('excel')) {
-        const blob = await (await fetch(plan.fileDataUrl)).blob();
         setViewingPlan(plan);
         setViewingPlanTitle(plan.title);
         try {
@@ -163,10 +184,8 @@ function PlanlarimPageContent() {
         }
     } else {
       // For PDF and Word files, open in a new tab.
-      const blob = await (await fetch(plan.fileDataUrl)).blob();
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
-      URL.revokeObjectURL(url); // Clean up
     }
   };
   
@@ -231,11 +250,11 @@ function PlanlarimPageContent() {
                 <CardFooter className="p-2 border-t mt-auto">
                     <div className='flex justify-between w-full items-center'>
                         <div className='flex gap-2'>
-                            <Button variant="outline" size="icon" onClick={() => viewFile(plan)}>
-                                <FileText />
+                            <Button variant="outline" size="sm" onClick={() => viewFile(plan)}>
+                                <FileText className='h-4 w-4 mr-2' /> Görüntüle
                             </Button>
                             <Button size="sm" onClick={() => downloadFile(plan.fileDataUrl, plan.fileName)}>
-                                <Download /> İndir
+                                <Download className='h-4 w-4 mr-2' /> İndir
                             </Button>
                         </div>
                         <AlertDialog>
@@ -343,5 +362,3 @@ export default function PlanlarimPage() {
       </AuthGuard>
     );
   }
-
-    

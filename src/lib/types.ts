@@ -2,7 +2,7 @@
 
 import { type LucideIcon, UserX, CircleSlash, PlusCircle, MinusCircle, FileCheck, Pin, PinOff } from "lucide-react";
 
-export type UserRole = 'admin' | 'teacher' | 'beklemede';
+export type UserRole = 'admin' | 'teacher' | 'beklemede' | 'pending-standard' | 'pending-pro';
 
 export type UserProfile = {
   fullName: string;
@@ -14,8 +14,11 @@ export type UserProfile = {
   hometown: string;
   role: UserRole;
   theme?: string;
+  tier?: 'free' | 'standard' | 'pro' | 'pending-standard' | 'pending-pro';
+  aiUsageCount?: number;
   fcmTokens?: string[];
   readNotificationIds?: string[];
+  tierStartDate?: string;
 };
 
 export type Student = {
@@ -24,11 +27,13 @@ export type Student = {
   firstName: string;
   lastName: string;
   classId: string;
+  studentCode: string;
 };
 
 export type ClassInfo = {
   id: string;
   name: string;
+  classCode: string;
   students: Student[];
 };
 
@@ -206,3 +211,20 @@ export type SpeechToNoteOutput = {
     note: string;
     items: string[];
 };
+
+export interface SmartSuggestion {
+    id: string;
+    type: 'observation' | 'reminder' | 'action';
+    title: string;
+    description: string;
+    relatedTo?: {
+        type: 'student' | 'class';
+        id: string;
+        name: string;
+    }
+}
+
+export interface SmartReminderInput {
+    existingReminders: Omit<Reminder, 'id' | 'createdAt'>[];
+    recentActivities: string[]; // Descriptions of recent observations, etc.
+}

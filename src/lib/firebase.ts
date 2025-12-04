@@ -4,16 +4,16 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getMessaging } from 'firebase/messaging';
 
-// Your web app's Firebase configuration is now managed by environment variables
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  databaseURL: `https://takip-k0hdb.firebaseio.com`
+  apiKey: "AIzaSyCJ3G_aB6dj3gvxgjg3sygeMnMNnEcXywE",
+  authDomain: "takip-k0hdb.firebaseapp.com",
+  projectId: "takip-k0hdb",
+  storageBucket: "takip-k0hdb.appspot.com",
+  messagingSenderId: "1093335320755",
+  appId: "1:1093335320755:web:b029a206cb0fe66f7408c6"
 };
+
 
 // Initialize Firebase
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);

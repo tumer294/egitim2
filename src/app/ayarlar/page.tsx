@@ -24,6 +24,9 @@ import {
   Sparkle,
   Gem,
   Palette,
+  KeyRound,
+  Copy,
+  GlassWater,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
@@ -38,6 +41,7 @@ import AuthGuard from '@/components/auth-guard';
 import { useTheme } from 'next-themes';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 
 
 function AyarlarPageContent() {
@@ -113,6 +117,15 @@ function AyarlarPageContent() {
       updateProfile({ ...profile, theme: newTheme });
     }
   };
+
+  const handleCopyCode = () => {
+    if (!user?.uid) return;
+    navigator.clipboard.writeText(user.uid);
+    toast({
+        title: 'Kod Kopyalandı!',
+        description: 'Öğretmen kodunuz panoya kopyalandı.',
+    });
+  }
 
   if (isLoading || !profile) {
     return (
@@ -255,6 +268,10 @@ function AyarlarPageContent() {
                                             <Sparkle className="h-8 w-8 text-rose-500" />
                                             <h3 className="font-semibold text-sm text-center">Gül</h3>
                                         </div>
+                                        <div onClick={() => handleThemeChange('glass')} className={cn('p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-blue-50 text-blue-900', theme === 'glass' ? 'border-blue-500' : 'border-blue-200')}>
+                                            <GlassWater className="h-8 w-8 text-blue-500" />
+                                            <h3 className="font-semibold text-sm text-center">Cam</h3>
+                                        </div>
                                         <div onClick={() => handleThemeChange('premium')} className={cn('relative p-4 rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center gap-2 bg-slate-100 text-slate-800', theme === 'premium' ? 'border-purple-500' : 'border-slate-300')}>
                                             <Badge variant="premium" className='absolute -top-2 -right-2'>Premium</Badge>
                                             <Gem className="h-8 w-8 text-purple-600" />
@@ -315,7 +332,3 @@ export default function AyarlarPage() {
       </AuthGuard>
     );
   }
-
-    
-
-    

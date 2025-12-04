@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -175,6 +176,17 @@ const NavContent = ({ onLinkClick, notificationCount, urgency }: { onLinkClick?:
             </div>
             <div className="mt-auto p-4 border-t" style={{ borderColor: 'hsl(var(--border) / 0.5)'}}>
                  <nav className="grid items-start gap-1 px-2 text-sm font-medium">
+                     <Link
+                        href="/paketler"
+                        onClick={onLinkClick}
+                        className={cn(
+                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[var(--sidebar-foreground)] opacity-90 transition-all hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)] hover:opacity-100',
+                             pathname.startsWith('/paketler') ? 'bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] opacity-100 hover:bg-[var(--sidebar-primary)]/90 hover:text-[var(--sidebar-primary-foreground)]' : ''
+                        )}
+                        >
+                        <Trophy className="h-5 w-5" />
+                        Paketler
+                    </Link>
                     <Link
                         href="/ayarlar"
                         onClick={onLinkClick}
@@ -261,7 +273,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         </Avatar>
                     </Link>
                 </header>
-                <div className="flex-1 overflow-auto bg-muted/40">
+                <div className="flex-1 overflow-auto bg-muted/40 relative">
                     {children}
                 </div>
             </div>

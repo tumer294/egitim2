@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/components/app-layout';
 import AuthGuard from '@/components/auth-guard';
 import { useToast } from '@/hooks/use-toast';
-import { assistantAction, parseStudentListAction } from '@/app/actions';
+import { assistantAction } from '@/app/actions';
 import type { ChatMessage } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -26,9 +26,7 @@ function YapayZekaPageContent() {
   
   const [input, setInput] = React.useState('');
   const [isResponding, setIsResponding] = React.useState(false);
-  const [isUploading, setIsUploading] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
 
   const scrollToBottom = () => {
@@ -73,51 +71,6 @@ function YapayZekaPageContent() {
       await addMessage({ role: 'model', content: 'Üzgünüm, bir hata oluştu.' });
     } finally {
       setIsResponding(false);
-    }
-  };
-  
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      if (file.type !== 'application/pdf') {
-          toast({
-              title: 'Geçersiz Dosya Türü',
-              description: 'Lütfen sadece PDF formatında bir dosya yükleyin.',
-              variant: 'destructive',
-          });
-          return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const dataUri = e.target?.result as string;
-        await addMessage({
-          role: 'user',
-          content: `[Kullanıcı "${file.name}" adlı bir dosya yükledi.]`
-        });
-
-        const result = await parseStudentListAction({ fileDataUri: dataUri });
-
-        if (result.error || !result.analysis) {
-          toast({ title: 'Dosya İşlenemedi', description: result.error || 'Dosya içeriği analiz edilirken bir hata oluştu.', variant: 'destructive' });
-           await addMessage({ role: 'model', content: `"${file.name}" dosyasını işlerken bir hata oluştu.` });
-        } else {
-          await addMessage({ role: 'model', content: result.analysis });
-        }
-      };
-      reader.onerror = () => {
-         toast({ title: 'Hata', description: 'Dosya okunurken bir hata oluştu.', variant: 'destructive' });
-      };
-      reader.readAsDataURL(file);
-    } catch (error: any) {
-      toast({ title: 'Hata', description: `Dosya yüklenirken bir hata oluştu: ${error.message}`, variant: 'destructive' });
-    } finally {
-      setIsUploading(false);
-      // Reset file input
-      if(event.target) event.target.value = '';
     }
   };
   
@@ -274,29 +227,13 @@ function YapayZekaPageContent() {
                 <form onSubmit={handleSendMessage} className="relative">
                     <Textarea
                         placeholder="Mesaj gönder"
-                        className="w-full resize-none border rounded-xl focus-visible:ring-1 pr-24"
+                        className="w-full resize-none border rounded-xl focus-visible:ring-1 pr-12"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         rows={1}
                     />
                     <div className="absolute top-1/2 right-2 -translate-y-1/2 flex items-center gap-1">
-                       <input
-                          type="file"
-                          ref={fileInputRef}
-                          className="hidden"
-                          onChange={handleFileChange}
-                          accept=".pdf"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          disabled={isUploading || isResponding}
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          {isUploading ? <Loader2 className="h-5 w-5 animate-spin"/> : <Paperclip className="h-5 w-5 text-muted-foreground" />}
-                        </Button>
                         <Button
                         type="submit"
                         size="icon"
@@ -307,11 +244,6 @@ function YapayZekaPageContent() {
                         </Button>
                     </div>
                 </form>
-                 <Alert className="py-2 text-center">
-                    <AlertDescription className="text-xs">
-                        Dosya analizi için lütfen öğrenci listenizi <strong>PDF</strong> formatında yükleyin.
-                    </AlertDescription>
-                </Alert>
             </div>
            <p className="text-xs text-center text-muted-foreground">
              YZ tarafından oluşturulan yanıtlar hatalar içerebilir. Önemli bilgileri doğrulayın.

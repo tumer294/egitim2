@@ -1,17 +1,16 @@
-
 'use client';
 
 import * as React from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, query, serverTimestamp, addDoc } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2, Search, Plus, MoreHorizontal, Pencil, Trash2, UserPlus, ShieldCheck, Users, ChevronRight } from 'lucide-react';
+import { Loader2, Search, Plus, MoreHorizontal, Pencil, Trash2, UserPlus, ShieldCheck, Users, ChevronRight, CheckCircle, ArrowDownCircle, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,13 +29,15 @@ import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-
+import type { UserRole } from '@/lib/types';
+import { migrateCodesAction } from './actions';
 
 type User = {
   id: string;
   fullName: string;
   email: string;
-  role: 'admin' | 'teacher' | 'beklemede';
+  role: UserRole;
+  tier?: 'free' | 'standard' | 'pro' | 'pending-standard' | 'pending-pro';
 };
 
 const userFormSchema = z.object({
@@ -46,6 +47,16 @@ const userFormSchema = z.object({
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
+
+const tiers = {
+    free: { name: 'Temel' },
+    standard: { name: 'Standart' },
+    pro: { name: 'Pro' },
+    'pending-standard': { name: 'Standart (Onay Bekliyor)' },
+    'pending-pro': { name: 'Pro (Onay Bekliyor)' },
+};
+
+type TierKey = keyof typeof tiers;
 
 function AdminPanelPage() {
   const { user: authUser, loading: authLoading } = useAuth();
@@ -59,6 +70,7 @@ function AdminPanelPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<User | null>(null);
   const [selectedUserForSheet, setSelectedUserForSheet] = React.useState<User | null>(null);
+  const [isMigrating, setIsMigrating] = React.useState(false);
 
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -84,7 +96,7 @@ function AdminPanelPage() {
       setIsLoading(false);
     }, async (error) => {
       const permissionError = new FirestorePermissionError({
-          path: q.path,
+          path: usersRef.path,
           operation: 'list',
       } satisfies SecurityRuleContext);
       errorEmitter.emit('permission-error', permissionError);
@@ -102,7 +114,7 @@ function AdminPanelPage() {
     if (editingUser) {
       form.reset({
           email: editingUser.email,
-          role: editingUser.role,
+          role: editingUser.role as 'admin' | 'teacher' | 'beklemede',
           fullName: editingUser.fullName,
       });
     } else {
@@ -153,9 +165,41 @@ function AdminPanelPage() {
     }
   };
   
+    const handleApproveTier = async (user: User, newTier: 'standard' | 'pro' | 'free') => {
+        try {
+            const userDoc = doc(db, 'users', user.id);
+            const updateData: { tier: string, aiUsageCount: number, tierStartDate?: string | null } = {
+                tier: newTier,
+                aiUsageCount: 0,
+            };
+            if (newTier !== 'free') {
+                updateData.tierStartDate = new Date().toISOString();
+            } else {
+                updateData.tierStartDate = null;
+            }
+            await updateDoc(userDoc, updateData);
+            toast({ title: 'Başarılı!', description: `${user.fullName} kullanıcısının paketi güncellendi.` });
+            setSelectedUserForSheet(prev => prev ? {...prev, tier: newTier} : null);
+        } catch (error) {
+            console.error("Error approving tier: ", error);
+            toast({ title: "Hata", description: "Paket onayı sırasında bir hata oluştu.", variant: "destructive" });
+        }
+    };
+    
+    const handleMigration = async () => {
+        setIsMigrating(true);
+        const result = await migrateCodesAction();
+        if (result.success) {
+            toast({ title: "İşlem Başarılı!", description: result.message });
+        } else {
+            toast({ title: "Hata!", description: result.message, variant: "destructive" });
+        }
+        setIsMigrating(false);
+    }
+  
   const filteredUsers = users.filter(user =>
-    user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (user.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const openFormForEdit = (user: User) => {
@@ -208,13 +252,14 @@ function AdminPanelPage() {
                 <TableHead>Ad Soyad</TableHead>
                 <TableHead>E-posta</TableHead>
                 <TableHead>Rol</TableHead>
+                <TableHead>Paket</TableHead>
                 <TableHead className="text-right">İşlemler</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {totalLoading ? (
                 <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                     <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                     </TableCell>
                 </TableRow>
@@ -226,7 +271,17 @@ function AdminPanelPage() {
                     <TableCell>
                         <RoleBadge role={user.role} />
                     </TableCell>
+                    <TableCell>
+                        <span className={cn(user.tier?.startsWith('pending-') && 'text-amber-600 font-semibold')}>
+                            {tiers[user.tier as TierKey]?.name || 'Temel'}
+                        </span>
+                    </TableCell>
                     <TableCell className="text-right">
+                         {user.tier?.startsWith('pending-') && (
+                            <Button size="sm" className='mr-2' onClick={() => handleApproveTier(user, user.tier?.split('-')[1] as 'standard' | 'pro')}>
+                                <CheckCircle className='h-4 w-4 mr-2'/>Onayla
+                            </Button>
+                         )}
                         <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
@@ -239,6 +294,27 @@ function AdminPanelPage() {
                             <Pencil className="mr-2 h-4 w-4" />
                             <span>Düzenle</span>
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {user.tier !== 'free' && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                            <ArrowDownCircle className="mr-2 h-4 w-4" />
+                                            <span>Temel Pakete Düşür</span>
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Paketi Düşürmek Üzeresiniz</AlertDialogTitle>
+                                            <AlertDialogDescription>Bu kullanıcıyı Temel pakete düşürmek istediğinizden emin misiniz? Bu işlem kullanıcının limitlerini sıfırlayacaktır.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>İptal</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleApproveTier(user, 'free')}>Evet, Temel'e Düşür</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
                             <DropdownMenuItem className='text-destructive' onClick={() => handleDeleteUser(user.id)}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             <span>Sil</span>
@@ -250,7 +326,7 @@ function AdminPanelPage() {
                 ))
                 ) : (
                 <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                     Arama kriterlerine uygun sonuç bulunamadı.
                     </TableCell>
                 </TableRow>
@@ -270,7 +346,7 @@ function AdminPanelPage() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <Avatar>
-                                <AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback>
+                                <AvatarFallback>{(user.fullName || ' ').charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div>
                                 <p className="font-semibold">{user.fullName}</p>
@@ -294,15 +370,49 @@ function AdminPanelPage() {
                     <SheetHeader>
                         <SheetTitle>{selectedUserForSheet.fullName}</SheetTitle>
                         <SheetDescription>{selectedUserForSheet.email}</SheetDescription>
-                        <div className='pt-2'>
+                        <div className='pt-2 flex gap-2'>
                            <RoleBadge role={selectedUserForSheet.role} />
+                           <Badge variant="outline">{tiers[selectedUserForSheet.tier as TierKey]?.name || 'Temel'}</Badge>
                         </div>
                     </SheetHeader>
                     <div className="py-8 flex flex-col gap-4">
+                         {selectedUserForSheet.tier?.startsWith('pending-') && (
+                            <Card className='p-4 bg-amber-50 border-amber-200'>
+                                <CardTitle className='text-base text-amber-800 mb-2'>Onay Bekleyen Paket</CardTitle>
+                                <div className='flex gap-2'>
+                                    <Button size="sm" className='flex-1' onClick={() => handleApproveTier(selectedUserForSheet, selectedUserForSheet.tier?.split('-')[1] as 'standard' | 'pro')}>
+                                        <CheckCircle className='h-4 w-4 mr-2'/>Onayla
+                                    </Button>
+                                    <Button size="sm" variant="destructive" className='flex-1' onClick={() => handleApproveTier(selectedUserForSheet, 'free')}>
+                                       Reddet
+                                    </Button>
+                                </div>
+                            </Card>
+                         )}
                         <Button variant="outline" onClick={() => openFormForEdit(selectedUserForSheet)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Kullanıcıyı Düzenle
                         </Button>
+                        {selectedUserForSheet.tier !== 'free' && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                     <Button variant="outline">
+                                        <ArrowDownCircle className="mr-2 h-4 w-4" />
+                                        Temel Pakete Düşür
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Paketi Düşürmek Üzeresiniz</AlertDialogTitle>
+                                        <AlertDialogDescription>Bu kullanıcıyı Temel pakete düşürmek istediğinizden emin misiniz? Bu işlem kullanıcının limitlerini sıfırlayacaktır.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleApproveTier(selectedUserForSheet, 'free')}>Evet, Temel'e Düşür</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button variant="destructive">
@@ -343,6 +453,31 @@ function AdminPanelPage() {
               Firestore'daki kullanıcı verilerini görüntüleyin ve yönetin.
             </p>
           </div>
+           <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={isMigrating}>
+                        {isMigrating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                        Eski Kayıtlara Kod Ata
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Tüm Kayıtlar İçin Kod Oluşturulsun mu?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Bu işlem, sistemdeki kodu olmayan TÜM sınıflar ve öğrenciler için yeni, benzersiz kodlar oluşturur ve atar.
+                            Mevcut kodlar etkilenmez. Bu, özellikle eski kayıtları yeni giriş sistemine uyumlu hale getirmek için kullanışlıdır.
+                            İşlem veritabanı boyutuna göre biraz zaman alabilir.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleMigration} disabled={isMigrating}>
+                            {isMigrating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Evet, Oluştur ve Ata
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
 
         <Card>
